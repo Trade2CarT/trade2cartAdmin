@@ -597,15 +597,28 @@ const AdminPage = ({ handleSignOut }) => {
       { path: 'bills', setter: setBills },
     ];
 
-    const listeners = references.map(({ path, setter }) =>
-      onValue(ref(db, path),
-        (snapshot) => setter(firebaseObjectToArray(snapshot)),
-        (error) => addNotification(`Could not sync ${path}.`, 'error')
-      )
-    );
-    setLoading(false);
+    let loadedCount = 0;
+    const listeners = references.map(({ path, setter }) => {
+      const dbRef = ref(db, path);
+      return onValue(dbRef, (snapshot) => {
+        setter(firebaseObjectToArray(snapshot));
+        loadedCount++;
+        if (loadedCount === references.length) {
+          setLoading(false);
+        }
+      }, (error) => {
+        addNotification(`Could not sync ${path}.`, 'error');
+        setLoading(false);
+      });
+    });
 
-    return () => listeners.forEach(unsubscribe => unsubscribe());
+    if (references.length === 0) {
+      setLoading(false);
+    }
+
+    return () => {
+      listeners.forEach(unsubscribe => unsubscribe());
+    };
   }, []);
 
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
