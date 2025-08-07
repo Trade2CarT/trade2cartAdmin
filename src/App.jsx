@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 
 // --- FIREBASE IMPORTS ---
-import { db } from './firebase';
-// This is the key for real-time updates
+import { db, auth } from './firebase'; // Make sure auth is exported from your firebase.js
 import { ref, set, update, remove, push, onValue } from 'firebase/database';
-
-import './App.css';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 // --- ICONS ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
@@ -22,6 +20,7 @@ const X = ({ className }) => <svg className={className} xmlns="http://www.w3.org
 const Info = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
 const Loader = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>;
 const Printer = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>;
+const SignOutIcon = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 
 
 // --- Helper Functions ---
@@ -52,7 +51,6 @@ const Notification = ({ message, type, onClose }) => { const styles = { success:
 const TabButton = ({ id, label, activeTab, setActiveTab }) => (<button onClick={() => setActiveTab(id)} className={`px-4 py-2 font-medium text-sm rounded-md whitespace-nowrap ${activeTab === id ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>{label}</button>);
 
 // --- Content Components ---
-
 const LocationStatsCard = ({ location, userCount, vendorCount }) => (
   <div className="bg-white p-4 rounded-lg shadow-md">
     <h4 className="font-bold text-gray-700 text-lg">{location}</h4>
@@ -321,7 +319,6 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
   );
 }
 
-// --- NEW COMPONENT: Bill Modal ---
 const BillModal = ({ bill, onClose }) => {
   if (!bill) return null;
 
@@ -400,7 +397,6 @@ const BillModal = ({ bill, onClose }) => {
   );
 };
 
-// --- NEW COMPONENT: Completed Orders & Billing ---
 const BillingContent = ({ users, vendors, bills, openBillModal }) => {
   return (
     <div>
@@ -443,8 +439,8 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
 };
 
 
-// --- Main Admin Page Component ---
-const AdminPage = () => {
+// --- Admin Panel Component ---
+const AdminPage = ({ handleSignOut }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeVendorTab, setActiveVendorTab] = useState('pending');
   const [loading, setLoading] = useState(true);
@@ -454,7 +450,7 @@ const AdminPage = () => {
   const [wasteEntries, setWasteEntries] = useState([]);
   const [allAssignments, setAllAssignments] = useState([]);
   const [items, setItems] = useState([]);
-  const [bills, setBills] = useState([]); // State for bills
+  const [bills, setBills] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [assignments, setAssignments] = useState({});
   const [showDetails, setShowDetails] = useState({});
@@ -465,7 +461,7 @@ const AdminPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [billToView, setBillToView] = useState(null); // State for the bill modal
+  const [billToView, setBillToView] = useState(null);
 
   const addNotification = (message, type = 'info') => {
     const id = Date.now();
@@ -475,7 +471,6 @@ const AdminPage = () => {
     }, 5000);
   };
 
-  // --- REAL-TIME DATA CONNECTION ---
   useEffect(() => {
     setLoading(true);
     const references = [
@@ -484,7 +479,7 @@ const AdminPage = () => {
       { path: 'wasteEntries', setter: setWasteEntries },
       { path: 'assignments', setter: setAllAssignments },
       { path: 'items', setter: setItems },
-      { path: 'bills', setter: setBills }, // Add listener for bills
+      { path: 'bills', setter: setBills },
     ];
 
     let loadedCount = 0;
@@ -507,7 +502,6 @@ const AdminPage = () => {
     };
   }, []);
 
-  // --- Memoized Derived State ---
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
   const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned), [wasteEntries]);
   const groupedUnassignedEntries = useMemo(() => {
@@ -519,7 +513,6 @@ const AdminPage = () => {
     }, {});
   }, [unassignedWasteEntries]);
 
-  // --- Event Handlers & API Functions ---
   const verifyVendor = async (id, status) => {
     setProcessingId(id);
     try {
@@ -671,17 +664,28 @@ const AdminPage = () => {
     <div className="bg-gray-100 min-h-screen font-sans">
       <div className="fixed top-5 right-5 z-50">{notifications.map(n => (<Notification key={n.id} message={n.message} type={n.type} onClose={() => setNotifications(all => all.filter(notif => notif.id !== n.id))} />))}</div>
       <div className="md:flex">
-        <aside className="w-full md:w-64 bg-white md:min-h-screen p-4 md:p-6 shadow-lg">
-          <h1 className="text-2xl font-bold text-gray-800 mb-8">Admin Panel</h1>
-          <nav className="flex md:flex-col md:space-y-2 overflow-x-auto pb-2">
-            <TabButton id="dashboard" label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton id="users" label="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton id="verification" label="Vendors" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton id="assignment" label="Assign Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton id="products" label="Manage Assignments" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton id="items" label="Manage Items" activeTab={activeTab} setActiveTab={setActiveTab} />
-            <TabButton id="billing" label="Completed & Billing" activeTab={activeTab} setActiveTab={setActiveTab} />
-          </nav>
+        <aside className="w-full md:w-64 bg-white md:min-h-screen p-4 md:p-6 shadow-lg flex flex-col">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-8">Admin Panel</h1>
+            <nav className="flex md:flex-col md:space-y-2 overflow-x-auto pb-2">
+              <TabButton id="dashboard" label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="users" label="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="verification" label="Vendors" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="assignment" label="Assign Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="products" label="Manage Assignments" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="items" label="Manage Items" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="billing" label="Completed & Billing" activeTab={activeTab} setActiveTab={setActiveTab} />
+            </nav>
+          </div>
+          <div className="mt-auto">
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200"
+            >
+              <SignOutIcon className="w-5 h-5" />
+              Sign Out
+            </button>
+          </div>
         </aside>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>}>
@@ -696,6 +700,86 @@ const AdminPage = () => {
   );
 };
 
-export default AdminPage;
+
+// --- Login Page Component ---
+const AdminLogin = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // On successful login, the onAuthStateChanged listener in App will handle the redirect.
+    } catch (err) {
+      setError('Failed to log in. Please check your email and password.');
+      console.error("Login Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-center text-gray-800">Admin Panel Login</h1>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">Email</label>
+            <input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          <div>
+            <label htmlFor="password" className="text-sm font-medium text-gray-700">Password</label>
+            <input id="password" name="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+          {error && <p className="text-sm text-center text-red-600">{error}</p>}
+          <div>
+            <button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400">
+              {loading ? <Loader className="w-5 h-5 animate-spin" /> : 'Sign In'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 
+// --- Main App Component (Gatekeeper) ---
+const App = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Sign Out Error", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <Loader className="w-16 h-16 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  return user ? <AdminPage handleSignOut={handleSignOut} /> : <AdminLogin />;
+};
+
+export default App;
