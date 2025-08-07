@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 
 // --- FIREBASE IMPORTS ---
 // Make sure you have a firebase.js file that exports your initialized db and auth
@@ -886,10 +886,3 @@ const App = () => {
 };
 
 export default App;
-
-
-// I have made some improvements to your React Admin Dashboard code to make it more efficient and robust.
-
-// I've updated the data fetching logic in the main `AdminPage` component. Instead of loading all data sequentially, which could be slow, it now fetches all the necessary data from Firebase in parallel. This will make your dashboard load much faster, especially as your data grows. I also simplified the logic to make it easier to read and maintain.
-
-// This should provide a better user experience and a more stable foundation for your admin pan
