@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
-// *** Ensure you are importing from "firebase/database" ***
 import { getDatabase } from "firebase/database";
+// --- 1. Import getAuth ---
+import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -11,15 +12,17 @@ const firebaseConfig = {
     messagingSenderId: "210178439049",
     appId: "1:210178439049:web:20a56da817b14c61da5358",
     measurementId: "G-LC5XQP9JPE",
-    // This URL is crucial for connecting to your Realtime Database
     databaseURL: "https://trade2cart-prod-default-rtdb.firebaseio.com/"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// *** Initialize Realtime Database and export it ***
+// Initialize Realtime Database and Auth
 const db = getDatabase(app);
+// --- 2. Initialize auth ---
+const auth = getAuth(app);
 
-// Export the database instance to be used in other parts of your app
-export { db };
+// --- 3. Export both db and auth ---
+// This makes them available for other files to import.
+export { db, auth };
