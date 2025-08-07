@@ -1,0 +1,91 @@
+{
+    "vendors": [
+        {
+            "name": "Green City Recyclers",
+            "phone": "9876543210",
+            "location": "Bengaluru",
+            "aadhaar": "123456789012",
+            "pan": "ABCDE1234F",
+            "status": "pending",
+            "createdAt": "2024-08-01T10:00:00Z",
+            "aadhaarPhoto": "https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Photo",
+            "panPhoto": "https://placehold.co/400x250/e2e8f0/334155?text=PAN+Photo",
+            "licensePhoto": "https://placehold.co/400x250/e2e8f0/334155?text=License+Photo"
+        },
+        {
+            "name": "Eco-Wise Solutions",
+            "phone": "8765432109",
+            "location": "Mumbai",
+            "aadhaar": "210987654321",
+            "pan": "FGHIJ5678K",
+            "status": "approved",
+            "createdAt": "2024-07-25T11:30:00Z",
+            "aadhaarPhoto": "https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Photo",
+            "panPhoto": "https://placehold.co/400x250/e2e8f0/334155?text=PAN+Photo",
+            "licensePhoto": "https://placehold.co/400x250/e2e8f0/334155?text=License+Photo"
+        }
+    ],
+    "users": [
+        {
+            "phone": "8887776665",
+            "name": "Ramesh Kumar",
+            "Status": "Pending"
+        },
+        {
+            "phone": "9998887776",
+            "name": "Sunita Sharma",
+            "Status": "Pending"
+        }
+    ],
+    "wasteEntries": [
+        {
+            "mobile": "8887776665",
+            "category": "Paper",
+            "quantity": 10,
+            "unit": "kg",
+            "total": 120,
+            "createdAt": "2024-08-05T09:00:00Z",
+            "isAssigned": false
+        },
+        {
+            "mobile": "9998887776",
+            "category": "Plastic",
+            "quantity": 5,
+            "unit": "kg",
+            "total": 75,
+            "createdAt": "2024-08-05T09:05:00Z",
+            "isAssigned": false
+        }
+    ],
+    "assignments": [],
+    "items": [
+        {
+            "name": "Newspaper",
+            "rate": 12,
+            "unit": "kg",
+            "category": "Paper",
+            "location": "Bengaluru"
+        },
+        {
+            "name": "Plastic Bottles",
+            "rate": 15,
+            "unit": "kg",
+            "category": "Plastic",
+            "location": "Bengaluru"
+        },
+        {
+            "name": "Newspaper",
+            "rate": 11,
+            "unit": "kg",
+            "category": "Paper",
+            "location": "Mumbai"
+        },
+        {
+            "name": "Cardboard",
+            "rate": 8,
+            "unit": "kg",
+            "category": "Paper",
+            "location": "Bengaluru"
+        }
+    ]
+}
