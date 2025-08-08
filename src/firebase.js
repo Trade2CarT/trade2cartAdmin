@@ -1,7 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
-// --- 1. Import getAuth ---
 import { getAuth } from "firebase/auth";
+// --- 1. Import App Check and the ReCaptchaV3Provider ---
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,11 +19,17 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+// --- 2. Initialize App Check ---
+// This connects your app to your reCAPTCHA v3 site key.
+// Make sure you have the key in your .env.local file.
+initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider('6Lewip0rAAAAAEzYExHo2ICd1jNBOsRMkoYJ0NLy'),
+    isTokenAutoRefreshEnabled: true
+});
+
 // Initialize Realtime Database and Auth
 const db = getDatabase(app);
-// --- 2. Initialize auth ---
 const auth = getAuth(app);
 
-// --- 3. Export both db and auth ---
-// This makes them available for other files to import.
+// Export db and auth for use in other files
 export { db, auth };
