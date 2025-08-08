@@ -8,6 +8,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebas
 // --- TOASTIFY IMPORTS ---
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './App.css'
 
 // --- SVG ICONS AS REACT COMPONENTS ---
 // For better organization, these icons should be in their own files (e.g., 'src/components/Icons.jsx')
