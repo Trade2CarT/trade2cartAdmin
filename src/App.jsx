@@ -325,7 +325,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item.id)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item.id)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -380,15 +380,15 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.item}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-bold">
                 <td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td>
-                <td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
+                <td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>
@@ -428,7 +428,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center">
                     <button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">
                       View Bill
@@ -537,8 +537,11 @@ const AdminPage = ({ handleSignOut }) => {
       const productsSummary = entriesToAssign.map(e => `${e.name} (${e.quantity} ${e.unit})`).join(', ');
       const totalAmount = entriesToAssign.reduce((sum, e) => sum + parseFloat(e.total || 0), 0);
 
+      const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
-      updates[`/assignments/${newAssignmentRef.key}`] = {
+      const newAssignmentId = newAssignmentRef.key;
+
+      updates[`/assignments/${newAssignmentId}`] = {
         mobile,
         vendorId,
         vendorName: vendor.name,
@@ -552,11 +555,15 @@ const AdminPage = ({ handleSignOut }) => {
       entriesToAssign.forEach(entry => {
         updates[`/wasteEntries/${entry.id}/isAssigned`] = true;
       });
+
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
+      updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentId;
+      updates[`/users/${user.id}/otp`] = newOtp;
 
       await update(ref(db), updates);
       toast.success(`Order for ${user.name} assigned to ${vendor.name}.`);
     } catch (error) {
+      console.error("Assignment Error:", error);
       toast.error('Group assignment failed.');
     } finally {
       setProcessingId(null);
@@ -636,7 +643,7 @@ const AdminPage = ({ handleSignOut }) => {
             <h1 className="text-2xl font-bold text-gray-800 mb-8">Admin Panel</h1>
             <nav className="flex md:flex-col md:space-y-2 overflow-x-auto pb-2 -mx-4 px-4">
               <TabButton id="dashboard" label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="users" label="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="users" label="Users" activeTab={active - Tab} setActiveTab={setActiveTab} />
               <TabButton id="verification" label="Vendors" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="assignment" label="Assign Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="items" label="Manage Items" activeTab={activeTab} setActiveTab={setActiveTab} />
