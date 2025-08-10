@@ -517,6 +517,7 @@ const AdminPage = ({ handleSignOut }) => {
   const toggleDetails = (id) => setShowDetails(prev => ({ ...prev, [id]: !prev[id] }));
   const handleAssignChange = (mobile, vendorId) => setAssignments(prev => ({ ...prev, [mobile]: vendorId }));
 
+  // In your Admin Panel's App.jsx file
   const confirmGroupAssignment = async (mobile) => {
     const vendorId = assignments[mobile];
     if (!vendorId) return toast.info('Please select a vendor first.');
@@ -550,7 +551,7 @@ const AdminPage = ({ handleSignOut }) => {
         totalAmount,
         assignedAt: new Date().toISOString(),
         status: 'assigned',
-        userId: user.id
+        userId: user.id // This line is crucial
       };
 
       entriesToAssign.forEach(entry => {
