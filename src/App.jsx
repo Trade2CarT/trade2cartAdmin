@@ -447,6 +447,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
 
 
 // --- Admin Panel Component ---
+// --- Admin Panel Component ---
 const AdminPage = ({ handleSignOut }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeVendorTab, setActiveVendorTab] = useState('pending');
@@ -549,7 +550,8 @@ const AdminPage = ({ handleSignOut }) => {
         products: productsSummary,
         totalAmount,
         assignedAt: new Date().toISOString(),
-        status: 'assigned'
+        status: 'assigned',
+        userId: user.id // IMPORTANT: Store the user's ID
       };
 
       entriesToAssign.forEach(entry => {
@@ -643,7 +645,8 @@ const AdminPage = ({ handleSignOut }) => {
             <h1 className="text-2xl font-bold text-gray-800 mb-8">Admin Panel</h1>
             <nav className="flex md:flex-col md:space-y-2 overflow-x-auto pb-2 -mx-4 px-4">
               <TabButton id="dashboard" label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="users" label="Users" activeTab={active - Tab} setActiveTab={setActiveTab} />
+              {/* --- THIS IS THE CORRECTED LINE --- */}
+              <TabButton id="users" label="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="verification" label="Vendors" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="assignment" label="Assign Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="items" label="Manage Items" activeTab={activeTab} setActiveTab={setActiveTab} />
