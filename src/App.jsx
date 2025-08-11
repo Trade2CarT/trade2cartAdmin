@@ -168,9 +168,27 @@ const VendorVerificationContent = ({ vendors, showDetails, toggleDetails, setSel
             <div><p className="font-semibold text-gray-700">PAN:</p><p className="text-gray-600">{v.pan}</p></div>
           </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <img src={v.aadhaarPhoto} alt="Aadhaar" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(v.aadhaarPhoto)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }} />
-            <img src={v.panPhoto} alt="PAN" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(v.panPhoto)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }} />
-            <img src={v.licensePhoto} alt="License" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(v.licensePhoto)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }} />
+            <img
+              src={v.aadhaarPhotoURL}
+              alt="Aadhaar"
+              className="w-full h-auto rounded-lg shadow cursor-pointer"
+              onClick={() => setSelectedImage(v.aadhaarPhotoURL)}
+              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }}
+            />
+            <img
+              src={v.panPhotoURL}
+              alt="PAN"
+              className="w-full h-auto rounded-lg shadow cursor-pointer"
+              onClick={() => setSelectedImage(v.panPhotoURL)}
+              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }}
+            />
+            <img
+              src={v.licensePhotoURL}
+              alt="License"
+              className="w-full h-auto rounded-lg shadow cursor-pointer"
+              onClick={() => setSelectedImage(v.licensePhotoURL)}
+              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }}
+            />
           </div>
           {actions && (
             <div className="mt-6 flex justify-end space-x-3">
