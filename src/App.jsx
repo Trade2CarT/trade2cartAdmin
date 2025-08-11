@@ -470,7 +470,6 @@ const AdminPage = ({ handleSignOut }) => {
   const [billToView, setBillToView] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
     const references = [
       { path: 'vendors', setter: setVendors },
       { path: 'users', setter: setUsers },
@@ -480,13 +479,27 @@ const AdminPage = ({ handleSignOut }) => {
       { path: 'bills', setter: setBills },
     ];
 
+    setLoading(true);
+    let dataSourcesToLoad = references.length;
+
     const listeners = references.map(({ path, setter }) =>
       onValue(ref(db, path),
-        (snapshot) => setter(firebaseObjectToArray(snapshot)),
-        (error) => toast.error(`Could not sync ${path}.`)
+        (snapshot) => {
+          setter(firebaseObjectToArray(snapshot));
+          dataSourcesToLoad--;
+          if (dataSourcesToLoad === 0) {
+            setLoading(false);
+          }
+        },
+        (error) => {
+          toast.error(`Could not sync ${path}.`);
+          dataSourcesToLoad--;
+          if (dataSourcesToLoad === 0) {
+            setLoading(false);
+          }
+        }
       )
     );
-    setLoading(false);
 
     return () => listeners.forEach(unsubscribe => unsubscribe());
   }, []);
@@ -517,7 +530,6 @@ const AdminPage = ({ handleSignOut }) => {
   const toggleDetails = (id) => setShowDetails(prev => ({ ...prev, [id]: !prev[id] }));
   const handleAssignChange = (mobile, vendorId) => setAssignments(prev => ({ ...prev, [mobile]: vendorId }));
 
-  // In your Admin Panel's App.jsx file
   const confirmGroupAssignment = async (mobile) => {
     const vendorId = assignments[mobile];
     if (!vendorId) return toast.info('Please select a vendor first.');
@@ -551,7 +563,7 @@ const AdminPage = ({ handleSignOut }) => {
         totalAmount,
         assignedAt: new Date().toISOString(),
         status: 'assigned',
-        userId: user.id // This line is crucial
+        userId: user.id
       };
 
       entriesToAssign.forEach(entry => {
