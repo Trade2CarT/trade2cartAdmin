@@ -15,7 +15,6 @@ const Users = ({ className }) => <svg className={className} xmlns="http://www.w3
 const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
 const Package = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /><path d="M12 15H3l-1-5L2 2h20l-1 8h-9" /><path d="m9.5 9.4 1.35 1.35a.5.5 0 0 0 .7 0L13 9.4" /></svg>;
 const Clock = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
-const ChevronDown = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>;
 const CheckCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
 const XCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>;
 const AlertTriangle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>;
@@ -168,7 +167,44 @@ const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, proce
   </div>
 );
 
-const VendorVerificationContent = ({ vendors, showDetails, toggleDetails, setSelectedImage, updateVendorStatus, openDeleteModal, processingId, activeVendorTab, setActiveVendorTab }) => {
+const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelectedImage, processingId }) => {
+  if (!vendor) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-auto my-8 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 relative">
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+          <h3 className="text-xl font-bold text-gray-800">{vendor.name}</h3>
+          <p className="text-sm text-gray-500">{vendor.phone}</p>
+        </div>
+        <div className="p-6 border-t border-gray-200 bg-gray-50 max-h-[70vh] overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div><p className="font-semibold text-gray-700">Location:</p><p className="text-gray-600">{vendor.location}</p></div>
+            <div><p className="font-semibold text-gray-700">Aadhaar:</p><p className="text-gray-600">{vendor.aadhaar}</p></div>
+            <div><p className="font-semibold text-gray-700">PAN:</p><p className="text-gray-600">{vendor.pan}</p></div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <img src={vendor.aadhaarPhotoURL} alt="Aadhaar" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(vendor.aadhaarPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }} />
+            <img src={vendor.panPhotoURL} alt="PAN" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(vendor.panPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }} />
+            <img src={vendor.licensePhotoURL} alt="License" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(vendor.licensePhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }} />
+          </div>
+        </div>
+        <div className="p-4 bg-gray-100 flex justify-end items-center space-x-3">
+          {vendor.status === 'pending' && <>
+            <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 mr-2" /> Reject</>}</button>
+            <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Approve</>}</button>
+          </>}
+          {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><Ban className="w-4 h-4 mr-2" /> Block</>}</button>}
+          {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Unblock</>}</button>}
+          <button onClick={() => onDelete(vendor)} disabled={processingId === vendor.id} className="p-2.5 text-red-600 bg-red-100 rounded-lg hover:bg-red-200 disabled:bg-gray-400"><Trash2 className="w-4 h-4" /></button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendorTab, setActiveVendorTab }) => {
   const [pendingVendors, approvedVendors, rejectedVendors, blockedVendors] = useMemo(() => [
     vendors.filter(v => v.status === 'pending'),
     vendors.filter(v => v.status === 'approved'),
@@ -176,63 +212,23 @@ const VendorVerificationContent = ({ vendors, showDetails, toggleDetails, setSel
     vendors.filter(v => v.status === 'blocked')
   ], [vendors]);
 
-  const getStatusPill = (status) => {
-    switch (status) {
-      case 'approved': return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>;
-      case 'rejected': return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>;
-      case 'blocked': return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-800">Blocked</span>;
-      default: return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>;
-    }
-  };
-
-  const VendorCard = ({ v }) => (
-    <div key={v.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xl font-bold text-gray-800">{v.name}</p>
-            <p className="text-sm text-gray-500">{v.phone}</p>
-            <p className="text-xs text-gray-400 mt-1">Submitted: {formatDate(v.createdAt)}</p>
-          </div>
-          <div className="mt-4 sm:mt-0 flex-shrink-0 flex items-center space-x-2">
-            {getStatusPill(v.status)}
-            <button onClick={() => toggleDetails(v.id)} className="p-2 rounded-full hover:bg-gray-100"><ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${showDetails[v.id] ? 'rotate-180' : ''}`} /></button>
-          </div>
-        </div>
-      </div>
-      {showDetails[v.id] && (
-        <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div><p className="font-semibold text-gray-700">Location:</p><p className="text-gray-600">{v.location}</p></div>
-            <div><p className="font-semibold text-gray-700">Aadhaar:</p><p className="text-gray-600">{v.aadhaar}</p></div>
-            <div><p className="font-semibold text-gray-700">PAN:</p><p className="text-gray-600">{v.pan}</p></div>
-          </div>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <img src={v.aadhaarPhotoURL} alt="Aadhaar" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(v.aadhaarPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }} />
-            <img src={v.panPhotoURL} alt="PAN" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(v.panPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }} />
-            <img src={v.licensePhotoURL} alt="License" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(v.licensePhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }} />
-          </div>
-          <div className="mt-6 flex justify-end items-center space-x-3">
-            {v.status === 'pending' && <>
-              <button onClick={() => updateVendorStatus(v.id, 'rejected')} disabled={processingId === v.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">{processingId === v.id ? <Loader className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 mr-2" /> Reject</>}</button>
-              <button onClick={() => updateVendorStatus(v.id, 'approved')} disabled={processingId === v.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === v.id ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Approve</>}</button>
-            </>}
-            {v.status === 'approved' && <button onClick={() => updateVendorStatus(v.id, 'blocked')} disabled={processingId === v.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400">{processingId === v.id ? <Loader className="w-4 h-4 animate-spin" /> : <><Ban className="w-4 h-4 mr-2" /> Block</>}</button>}
-            {v.status === 'blocked' && <button onClick={() => updateVendorStatus(v.id, 'approved')} disabled={processingId === v.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === v.id ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Unblock</>}</button>}
-
-            {/* Remove Button */}
-            <button onClick={() => openDeleteModal(v)} disabled={processingId === v.id} className="p-2.5 text-red-600 bg-red-100 rounded-lg hover:bg-red-200 disabled:bg-gray-400">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   const VendorList = ({ vendors }) => (
-    <div className="space-y-6">
-      {vendors.length > 0 ? (vendors.map(v => <VendorCard v={v} key={v.id} />)) : (<div className="text-center py-12 bg-white rounded-lg shadow-sm"><p className="text-gray-500">No vendors in this category.</p></div>)}
+    <div className="space-y-3">
+      {vendors.length > 0 ? (vendors.map(v => (
+        <button key={v.id} onClick={() => openVendorDetailModal(v)} className="w-full text-left p-4 bg-white rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-bold text-gray-800">{v.name}</p>
+              <p className="text-sm text-gray-600">{v.phone} &middot; {v.location}</p>
+            </div>
+            <span className={`px-3 py-1 text-xs font-semibold rounded-full capitalize ${v.status === 'approved' ? 'bg-green-100 text-green-800' :
+                v.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                  v.status === 'blocked' ? 'bg-gray-200 text-gray-800' :
+                    'bg-yellow-100 text-yellow-800'}`
+            }>{v.status}</span>
+          </div>
+        </button>
+      ))) : (<div className="text-center py-12 bg-white rounded-lg shadow-sm"><p className="text-gray-500">No vendors in this category.</p></div>)}
     </div>
   );
 
@@ -257,7 +253,7 @@ const VendorVerificationContent = ({ vendors, showDetails, toggleDetails, setSel
   );
 };
 
-const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, assignments, handleAssignChange, confirmGroupAssignment, processingId }) => {
+const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, assignments, setAssignments, confirmGroupAssignment, processingId }) => {
   return (
     <div>
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Assign New Orders</h2>
@@ -278,7 +274,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
                   <td className="px-6 py-4">{user.location}</td>
                   <td className="px-6 py-4"><ul className="list-disc list-inside space-y-1">{entries.map((entry) => (<li key={entry.id}>{entry.name} - {entry.quantity} {entry.unit}</li>))}</ul></td>
                   <td className="px-6 py-4">
-                    <select value={assignments[mobile] || ''} onChange={(e) => handleAssignChange(mobile, e.target.value)} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                    <select value={assignments[mobile] || ''} onChange={(e) => setAssignments(prev => ({ ...prev, [mobile]: e.target.value }))} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
                       <option value="">-- Select a Vendor --</option>
                       {recommendedVendors.length > 0 && <optgroup label={`Recommended for ${user.location}`}>{recommendedVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}</optgroup>}
                       {otherVendors.length > 0 && <optgroup label="Other Vendors">{otherVendors.map(v => (<option key={v.id} value={v.id}>{v.name} - {v.location || 'N/A'}</option>))}</optgroup>}
@@ -320,11 +316,8 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       toast.success(`Successfully copied ${itemsToCopy.length} items to ${newLocation}.`);
       setSourceLocation('');
       setNewLocation('');
-    } catch (error) {
-      toast.error('Failed to copy items.');
-    } finally {
-      setProcessingId(null);
-    }
+    } catch (error) { toast.error('Failed to copy items.'); }
+    finally { setProcessingId(null); }
   };
 
   return (
@@ -373,8 +366,6 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
 
 const BillModal = ({ bill, onClose }) => {
   if (!bill) return null;
-
-  // FIX: Ensure bill.billItems is an array to prevent crashes if it's an object or undefined.
   const billItemsArray = bill.billItems ? (Array.isArray(bill.billItems) ? bill.billItems : Object.values(bill.billItems)) : [];
 
   const handlePrint = () => {
@@ -462,9 +453,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
 const TransferOrderModal = ({ isOpen, onClose, onConfirm, assignment, vendors, processingId }) => {
   const [newVendorId, setNewVendorId] = useState('');
   if (!isOpen) return null;
-
   const availableVendors = vendors.filter(v => v.id !== assignment.vendorId);
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-4">
@@ -488,7 +477,7 @@ const TransferOrderModal = ({ isOpen, onClose, onConfirm, assignment, vendors, p
   );
 };
 
-const OngoingOrdersContent = ({ assignments, users, vendors, approvedVendors, onTransfer, processingId, openTransferModal }) => (
+const OngoingOrdersContent = ({ assignments, users, vendors, openTransferModal, openDeleteModal }) => (
   <div>
     <h2 className="text-2xl font-semibold text-gray-800 mb-6">Ongoing Orders</h2>
     <div className="bg-white rounded-lg shadow-md overflow-x-auto">
@@ -499,7 +488,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, approvedVendors, on
             <th scope="col" className="px-6 py-3">Customer</th>
             <th scope="col" className="px-6 py-3">Current Vendor</th>
             <th scope="col" className="px-6 py-3">Products Summary</th>
-            <th scope="col" className="px-6 py-3 text-center">Action</th>
+            <th scope="col" className="px-6 py-3 text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -513,9 +502,14 @@ const OngoingOrdersContent = ({ assignments, users, vendors, approvedVendors, on
                 <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
                 <td className="px-6 py-4 text-xs">{a.products}</td>
                 <td className="px-6 py-4 text-center">
-                  <button onClick={() => openTransferModal(a)} className="font-medium text-blue-600 hover:underline flex items-center justify-center gap-1 mx-auto">
-                    <RefreshCw className="w-4 h-4" /> Transfer
-                  </button>
+                  <div className="flex justify-center items-center space-x-4">
+                    <button onClick={() => openTransferModal(a)} className="font-medium text-blue-600 hover:underline flex items-center gap-1">
+                      <RefreshCw className="w-4 h-4" /> Transfer
+                    </button>
+                    <button onClick={() => openDeleteModal(a)} className="font-medium text-red-600 hover:underline flex items-center gap-1">
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -533,6 +527,8 @@ const AdminPage = ({ handleSignOut }) => {
   const [activeVendorTab, setActiveVendorTab] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+
+  // Data State
   const [vendors, setVendors] = useState([]);
   const [users, setUsers] = useState([]);
   const [wasteEntries, setWasteEntries] = useState([]);
@@ -542,17 +538,18 @@ const AdminPage = ({ handleSignOut }) => {
 
   // Component State
   const [assignments, setAssignments] = useState({});
-  const [showDetails, setShowDetails] = useState({});
   const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '' });
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [billToView, setBillToView] = useState(null);
 
   // Modal States
+  const [billToView, setBillToView] = useState(null);
+  const [vendorToView, setVendorToView] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
   const [vendorToDelete, setVendorToDelete] = useState(null);
+  const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [transferModalState, setTransferModalState] = useState({ isOpen: false, assignment: null });
 
   useEffect(() => {
@@ -584,13 +581,12 @@ const AdminPage = ({ handleSignOut }) => {
   }, [unassignedWasteEntries]);
 
   // --- CRUD Handlers ---
-
   const updateVendorStatus = async (id, status) => {
     setProcessingId(id);
     try {
       await update(ref(db, `vendors/${id}`), { status });
       toast.success(`Vendor has been ${status}.`);
-      if (status !== 'pending') setActiveVendorTab(status);
+      setVendorToView(prev => ({ ...prev, status }));
     } catch (error) { toast.error('Vendor status update failed.'); }
     finally { setProcessingId(null); }
   };
@@ -601,9 +597,9 @@ const AdminPage = ({ handleSignOut }) => {
     try {
       await remove(ref(db, `vendors/${vendorToDelete.id}`));
       toast.success(`Vendor '${vendorToDelete.name}' removed successfully.`);
-    } catch (error) {
-      toast.error('Failed to remove vendor.');
-    } finally {
+      setVendorToView(null);
+    } catch (error) { toast.error('Failed to remove vendor.'); }
+    finally {
       setVendorToDelete(null);
       setProcessingId(null);
     }
@@ -625,9 +621,8 @@ const AdminPage = ({ handleSignOut }) => {
     try {
       await remove(ref(db, `users/${userToDelete.id}`));
       toast.success(`User '${userToDelete.name}' removed successfully.`);
-    } catch (error) {
-      toast.error('Failed to remove user.');
-    } finally {
+    } catch (error) { toast.error('Failed to remove user.'); }
+    finally {
       setUserToDelete(null);
       setProcessingId(null);
     }
@@ -638,15 +633,36 @@ const AdminPage = ({ handleSignOut }) => {
     try {
       const newVendor = vendors.find(v => v.id === newVendorId);
       if (!newVendor) throw new Error("New vendor not found.");
-      await update(ref(db, `assignments/${assignmentId}`), {
-        vendorId: newVendor.id,
-        vendorName: newVendor.name,
-        vendorPhone: newVendor.phone,
-      });
+      await update(ref(db, `assignments/${assignmentId}`), { vendorId: newVendor.id, vendorName: newVendor.name, vendorPhone: newVendor.phone, });
       toast.success("Order transferred successfully!");
       setTransferModalState({ isOpen: false, assignment: null });
     } catch (error) { toast.error('Failed to transfer order.'); }
     finally { setProcessingId(null); }
+  };
+
+  const handleDeleteAssignment = async () => {
+    if (!assignmentToDelete) return;
+    setProcessingId(assignmentToDelete.id);
+    try {
+      const updates = {};
+      updates[`/assignments/${assignmentToDelete.id}`] = null;
+      if (assignmentToDelete.entryIds && Array.isArray(assignmentToDelete.entryIds)) {
+        assignmentToDelete.entryIds.forEach(entryId => {
+          updates[`/wasteEntries/${entryId}/isAssigned`] = false;
+        });
+      }
+      updates[`/users/${assignmentToDelete.userId}/Status`] = 'Active';
+      updates[`/users/${assignmentToDelete.userId}/currentAssignmentId`] = null;
+      updates[`/users/${assignmentToDelete.userId}/otp`] = null;
+
+      await update(ref(db), updates);
+      toast.success('Assignment deleted. Items are available for re-assignment.');
+    } catch (error) {
+      toast.error('Failed to delete assignment.');
+    } finally {
+      setAssignmentToDelete(null);
+      setProcessingId(null);
+    }
   };
 
   const confirmGroupAssignment = async (mobile) => {
@@ -663,16 +679,19 @@ const AdminPage = ({ handleSignOut }) => {
     try {
       const updates = {};
       const productsSummary = entriesToAssign.map(e => `${e.name} (${e.quantity} ${e.unit})`).join(', ');
-      const totalAmount = entriesToAssign.reduce((sum, e) => sum + parseFloat(e.total || 0), 0);
+      const entryIds = entriesToAssign.map(e => e.id);
       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
-      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, totalAmount, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id };
+
+      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
       updates[`/users/${user.id}/otp`] = newOtp;
+
       await update(ref(db), updates);
       toast.success(`Order for ${user.name} assigned to ${vendor.name}.`);
+      setAssignments(prev => ({ ...prev, [mobile]: '' })); // Reset dropdown
     } catch (error) { toast.error('Group assignment failed.'); }
     finally { setProcessingId(null); }
   };
@@ -685,11 +704,12 @@ const AdminPage = ({ handleSignOut }) => {
     if (Object.values(newItem).some(val => !val)) return toast.error('Please fill out all fields.');
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
+      const itemData = { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location };
       if (isEditing) {
-        await set(ref(db, `items/${currentItemId}`), { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location });
+        await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
       } else {
-        await set(push(ref(db, 'items')), newItem);
+        await set(push(ref(db, 'items')), itemData);
         toast.success('Item created successfully.');
       }
       cancelEdit();
@@ -698,8 +718,7 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
   const handleEditItem = (item) => {
-    setIsEditing(true);
-    setCurrentItemId(item.id);
+    setIsEditing(true); setCurrentItemId(item.id);
     setNewItem({ name: item.name, rate: item.rate, unit: item.unit, category: item.category, location: item.location });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -714,16 +733,15 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
   // --- Render Logic ---
-
   const renderContent = () => {
     if (loading) return <div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>;
 
     const contentMap = {
       dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} setActiveTab={setActiveTab} />,
       users: <UserManagementContent users={users} toggleUserStatus={toggleUserStatus} openDeleteModal={setUserToDelete} processingId={processingId} />,
-      verification: <VendorVerificationContent vendors={vendors} showDetails={showDetails} toggleDetails={setShowDetails} setSelectedImage={setSelectedImage} updateVendorStatus={updateVendorStatus} openDeleteModal={setVendorToDelete} processingId={processingId} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
-      assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} handleAssignChange={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
-      ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} onTransfer={handleTransferOrder} processingId={processingId} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} />,
+      verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
+      assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
+      ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
       items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
     };
@@ -755,9 +773,11 @@ const AdminPage = ({ handleSignOut }) => {
       <ConfirmationModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={handleDeleteItem} title="Delete Item" message={`Are you sure you want to delete the item '${itemToDelete?.name}'? This action cannot be undone.`} />
       <ConfirmationModal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} onConfirm={handleDeleteUser} title="Delete User" message={`Are you sure you want to remove the user '${userToDelete?.name}'? This action cannot be undone.`} />
       <ConfirmationModal isOpen={!!vendorToDelete} onClose={() => setVendorToDelete(null)} onConfirm={handleDeleteVendor} title="Delete Vendor" message={`Are you sure you want to remove the vendor '${vendorToDelete?.name}'? This action cannot be undone.`} />
+      <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={handleDeleteAssignment} title="Delete Assignment" message={`Are you sure you want to delete this assignment? The items will be returned to the assignment queue.`} />
 
       <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
       {billToView && <BillModal bill={billToView} onClose={() => setBillToView(null)} />}
+      {vendorToView && <VendorDetailModal vendor={vendorToView} onClose={() => setVendorToView(null)} onUpdateStatus={updateVendorStatus} onDelete={setVendorToDelete} setSelectedImage={setSelectedImage} processingId={processingId} />}
       <TransferOrderModal isOpen={transferModalState.isOpen} onClose={() => setTransferModalState({ isOpen: false, assignment: null })} onConfirm={handleTransferOrder} assignment={transferModalState.assignment} vendors={approvedVendors} processingId={processingId} />
     </div>
   );
@@ -770,8 +790,7 @@ const AdminLogin = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+    e.preventDefault(); setLoading(true);
     try { await signInWithEmailAndPassword(auth, email, password); }
     catch (err) { toast.error('Login Failed. Please check your credentials.'); }
     finally { setLoading(false); }
@@ -797,10 +816,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
+    const unsubscribe = onAuthStateChanged(auth, (user) => { setUser(user); setLoading(false); });
     return () => unsubscribe();
   }, []);
 
