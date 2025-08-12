@@ -922,9 +922,34 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Inside the AdminPage component's useEffect
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => { setUser(user); setLoading(false); });
-    return () => unsubscribe();
+    const references = [
+      { path: 'vendors', setter: setVendors }, { path: 'users', setter: setUsers },
+      { path: 'wasteEntries', setter: setWasteEntries }, { path: 'assignments', setter: setAllAssignments },
+      { path: 'items', setter: setItems }, { path: 'bills', setter: setBills },
+    ];
+    setLoading(true);
+
+    const listeners = references.map(({ path, setter }) => {
+      // Start with the base reference
+      let dataRef = ref(db, path);
+
+      // *** ADD THIS IF-STATEMENT ***
+      // If the path is 'users', apply the query required by your security rules
+      if (path === 'users') {
+        dataRef = query(dataRef, orderByChild('phone'));
+      }
+
+      // Use the (potentially modified) reference
+      return onValue(dataRef, (snapshot) => {
+        setter(firebaseObjectToArray(snapshot));
+      }, (error) => toast.error(`Could not sync ${path}.`));
+    });
+
+    Promise.all(listeners).finally(() => setLoading(false));
+    return () => listeners.forEach(unsubscribe => unsubscribe && unsubscribe());
   }, []);
 
   const handleSignOut = async () => {
