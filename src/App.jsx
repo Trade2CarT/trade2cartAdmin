@@ -61,7 +61,7 @@ const DashboardCard = ({ title, value, icon, color, onClick }) => (
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70]">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
         <div className="sm:flex sm:items-start">
           <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
@@ -84,7 +84,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
 const ImageModal = ({ src, onClose }) => {
   if (!src) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-[60] p-4" onClick={onClose}>
       <div className="relative">
         <img src={src} alt="Preview" className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()} />
         <button onClick={onClose} className="absolute -top-4 -right-4 text-white bg-gray-800 rounded-full p-2 hover:bg-gray-700">
@@ -657,9 +657,8 @@ const AdminPage = ({ handleSignOut }) => {
 
       await update(ref(db), updates);
       toast.success('Assignment deleted. Items are available for re-assignment.');
-    } catch (error) {
-      toast.error('Failed to delete assignment.');
-    } finally {
+    } catch (error) { toast.error('Failed to delete assignment.'); }
+    finally {
       setAssignmentToDelete(null);
       setProcessingId(null);
     }
@@ -691,7 +690,7 @@ const AdminPage = ({ handleSignOut }) => {
 
       await update(ref(db), updates);
       toast.success(`Order for ${user.name} assigned to ${vendor.name}.`);
-      setAssignments(prev => ({ ...prev, [mobile]: '' })); // Reset dropdown
+      setAssignments(prev => ({ ...prev, [mobile]: '' }));
     } catch (error) { toast.error('Group assignment failed.'); }
     finally { setProcessingId(null); }
   };
