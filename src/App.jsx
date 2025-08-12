@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, Suspense } from 'react';
 
 // --- FIREBASE IMPORTS ---
 import { db, auth } from './firebase';
-import { ref, set, update, remove, push, onValue } from 'firebase/database';
+import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 // --- TOASTIFY IMPORTS ---
@@ -11,15 +11,15 @@ import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
 
 // --- SVG ICONS ---
-const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
-const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
-const Package = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /><path d="M12 15H3l-1-5L2 2h20l-1 8h-9" /><path d="m9.5 9.4 1.35 1.35a.5.5 0 0 0 .7 0L13 9.4" /></svg>;
-const Clock = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
-const CheckCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
+const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
+const Package = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /><path d="M12 15H3l-1-5L2 2h20l-1 8h-9" /><path d="m9.5 9.4 1.35 1.35a.5.5 0 0 0 .7 0L13 9.4" /></svg>;
+const Clock = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
+const CheckCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>;
 const XCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>;
 const AlertTriangle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>;
 const X = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
-const Loader = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>;
+const Loader = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>;
 const Printer = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>;
 const SignOutIcon = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 const Ban = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></svg>;
@@ -222,9 +222,9 @@ const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendo
               <p className="text-sm text-gray-600">{v.phone} &middot; {v.location}</p>
             </div>
             <span className={`px-3 py-1 text-xs font-semibold rounded-full capitalize ${v.status === 'approved' ? 'bg-green-100 text-green-800' :
-                v.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                  v.status === 'blocked' ? 'bg-gray-200 text-gray-800' :
-                    'bg-yellow-100 text-yellow-800'}`
+              v.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                v.status === 'blocked' ? 'bg-gray-200 text-gray-800' :
+                  'bg-yellow-100 text-yellow-800'}`
             }>{v.status}</span>
           </div>
         </button>
@@ -357,7 +357,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -402,12 +402,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -437,7 +437,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -477,49 +477,72 @@ const TransferOrderModal = ({ isOpen, onClose, onConfirm, assignment, vendors, p
   );
 };
 
-const OngoingOrdersContent = ({ assignments, users, vendors, openTransferModal, openDeleteModal }) => (
-  <div>
-    <h2 className="text-2xl font-semibold text-gray-800 mb-6">Ongoing Orders</h2>
-    <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-      <table className="w-full text-sm text-left text-gray-500">
-        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3">Assigned Date</th>
-            <th scope="col" className="px-6 py-3">Customer</th>
-            <th scope="col" className="px-6 py-3">Current Vendor</th>
-            <th scope="col" className="px-6 py-3">Products Summary</th>
-            <th scope="col" className="px-6 py-3 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {assignments.map(a => {
-            const user = users.find(u => u.phone === a.mobile);
-            const vendor = vendors.find(v => v.id === a.vendorId);
-            return (
-              <tr key={a.id} className="bg-white border-b hover:bg-gray-50">
-                <td className="px-6 py-4">{formatDate(a.assignedAt)}</td>
-                <td className="px-6 py-4 font-medium text-gray-900">{user?.name || a.mobile}</td>
-                <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                <td className="px-6 py-4 text-xs">{a.products}</td>
-                <td className="px-6 py-4 text-center">
-                  <div className="flex justify-center items-center space-x-4">
-                    <button onClick={() => openTransferModal(a)} className="font-medium text-blue-600 hover:underline flex items-center gap-1">
-                      <RefreshCw className="w-4 h-4" /> Transfer
-                    </button>
-                    <button onClick={() => openDeleteModal(a)} className="font-medium text-red-600 hover:underline flex items-center gap-1">
-                      <Trash2 className="w-4 h-4" /> Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {assignments.length === 0 && <p className="p-6 text-center text-gray-500">No ongoing orders found.</p>}
+const OngoingOrdersContent = ({ assignments, users, vendors, openTransferModal, openDeleteModal }) => {
+
+  const enhancedAssignments = useMemo(() => {
+    return assignments.map(a => {
+      const relatedEntries = a.entryIds ? a.entryIds.map(id => wasteEntries.find(e => e.id === id)).filter(Boolean) : [];
+      const totalQuantity = relatedEntries.reduce((sum, entry) => sum + parseFloat(entry.quantity || 0), 0);
+      const totalAmount = relatedEntries.reduce((sum, entry) => sum + parseFloat(entry.total || 0), 0);
+      return {
+        ...a,
+        totalItems: a.entryIds?.length || 0,
+        totalQuantity,
+        totalAmount,
+      };
+    });
+  }, [assignments, wasteEntries]);
+
+
+  return (
+    <div>
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Ongoing Orders</h2>
+      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+        <table className="w-full text-sm text-left text-gray-500">
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3">Order ID</th>
+              <th scope="col" className="px-6 py-3">Customer</th>
+              <th scope="col" className="px-6 py-3">Vendor</th>
+              <th scope="col" className="px-6 py-3 text-center">Items</th>
+              <th scope="col" className="px-6 py-3 text-center">Quantity</th>
+              <th scope="col" className="px-6 py-3 text-right">Est. Amount</th>
+              <th scope="col" className="px-6 py-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {enhancedAssignments.map(a => {
+              const user = users.find(u => u.phone === a.mobile);
+              const vendor = vendors.find(v => v.id === a.vendorId);
+              return (
+                <tr key={a.id} className="bg-white border-b hover:bg-gray-50">
+                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{a.id.slice(-6)}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900">{user?.name || a.mobile}</td>
+                  <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
+                  <td className="px-6 py-4 text-center">{a.totalItems}</td>
+                  <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
+                  <td className="px-6 py-4 text-right font-semibold">鈧箋a.totalAmount.toFixed(2)}</td>
+
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex justify-center items-center space-x-2">
+                      <button onClick={() => openTransferModal(a)} className="p-2 text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200">
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => openDeleteModal(a)} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {assignments.length === 0 && <p className="p-6 text-center text-gray-500">No ongoing orders found.</p>}
+      </div>
     </div>
-  </div>
-);
+  )
+};
 
 // --- Admin Panel Component ---
 const AdminPage = ({ handleSignOut }) => {
@@ -580,6 +603,111 @@ const AdminPage = ({ handleSignOut }) => {
     }, {});
   }, [unassignedWasteEntries]);
 
+  const handleDeleteVendor = async () => {
+    if (!vendorToDelete) return;
+    setProcessingId(vendorToDelete.id);
+    const vendorId = vendorToDelete.id;
+    const updates = {};
+    let affectedAssignmentsCount = 0;
+
+    try {
+      // Find all assignments (ongoing and completed) for this vendor
+      const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('vendorId'), equalTo(vendorId));
+      const assignmentsSnapshot = await get(assignmentsQuery);
+
+      if (assignmentsSnapshot.exists()) {
+        assignmentsSnapshot.forEach(assignSnap => {
+          const assignment = { id: assignSnap.key, ...assignSnap.val() };
+          affectedAssignmentsCount++;
+
+          // If assignment is ongoing, return its items to the queue
+          if (assignment.status === 'assigned' && assignment.entryIds) {
+            assignment.entryIds.forEach(entryId => {
+              updates[`/wasteEntries/${entryId}/isAssigned`] = false;
+            });
+          }
+
+          // Delete the assignment record
+          updates[`/assignments/${assignment.id}`] = null;
+        });
+      }
+
+      // Find and delete all bills associated with this vendor
+      const billsQuery = query(ref(db, 'bills'), orderByChild('vendorId'), equalTo(vendorId));
+      const billsSnapshot = await get(billsQuery);
+      if (billsSnapshot.exists()) {
+        billsSnapshot.forEach(billSnap => {
+          updates[`/bills/${billSnap.key}`] = null;
+        });
+      }
+
+      // Delete the vendor record itself
+      updates[`/vendors/${vendorId}`] = null;
+
+      await update(ref(db), updates);
+
+      toast.success(`Vendor '${vendorToDelete.name}' and all related data (${affectedAssignmentsCount} assignments) have been permanently deleted.`);
+      setVendorToView(null);
+
+    } catch (error) {
+      toast.error('An error occurred during the deletion process.');
+      console.error("Vendor deletion error:", error);
+    } finally {
+      setVendorToDelete(null);
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setProcessingId(userToDelete.id);
+    const userId = userToDelete.id;
+    const userMobile = userToDelete.phone;
+    const updates = {};
+
+    try {
+      // Delete user's own record
+      updates[`/users/${userId}`] = null;
+
+      // Find and delete all of the user's waste entries (unassigned)
+      const wasteQuery = query(ref(db, 'wasteEntries'), orderByChild('mobile'), equalTo(userMobile));
+      const wasteSnapshot = await get(wasteQuery);
+      if (wasteSnapshot.exists()) {
+        wasteSnapshot.forEach(snap => {
+          updates[`/wasteEntries/${snap.key}`] = null;
+        });
+      }
+
+      // Find and delete all of the user's assignments (ongoing and completed)
+      const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('userId'), equalTo(userId));
+      const assignmentsSnapshot = await get(assignmentsQuery);
+      if (assignmentsSnapshot.exists()) {
+        assignmentsSnapshot.forEach(snap => {
+          updates[`/assignments/${snap.key}`] = null;
+        });
+      }
+
+      // Find and delete all of the user's bills
+      const billsQuery = query(ref(db, 'bills'), orderByChild('userId'), equalTo(userId));
+      const billsSnapshot = await get(billsQuery);
+      if (billsSnapshot.exists()) {
+        billsSnapshot.forEach(snap => {
+          updates[`/bills/${snap.key}`] = null;
+        });
+      }
+
+      await update(ref(db), updates);
+      toast.success(`User '${userToDelete.name}' and all their related data have been permanently deleted.`);
+    } catch (error) {
+      toast.error('An error occurred during user deletion.');
+      console.error("User deletion error:", error);
+    } finally {
+      setUserToDelete(null);
+      setProcessingId(null);
+    }
+  };
+
+
   // --- CRUD Handlers ---
   const updateVendorStatus = async (id, status) => {
     setProcessingId(id);
@@ -591,19 +719,6 @@ const AdminPage = ({ handleSignOut }) => {
     finally { setProcessingId(null); }
   };
 
-  const handleDeleteVendor = async () => {
-    if (!vendorToDelete) return;
-    setProcessingId(vendorToDelete.id);
-    try {
-      await remove(ref(db, `vendors/${vendorToDelete.id}`));
-      toast.success(`Vendor '${vendorToDelete.name}' removed successfully.`);
-      setVendorToView(null);
-    } catch (error) { toast.error('Failed to remove vendor.'); }
-    finally {
-      setVendorToDelete(null);
-      setProcessingId(null);
-    }
-  };
 
   const toggleUserStatus = async (user) => {
     setProcessingId(user.id);
@@ -613,19 +728,6 @@ const AdminPage = ({ handleSignOut }) => {
       toast.success(`User has been ${newStatus.toLowerCase()}.`);
     } catch (error) { toast.error('User status update failed.'); }
     finally { setProcessingId(null); }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
-    setProcessingId(userToDelete.id);
-    try {
-      await remove(ref(db, `users/${userToDelete.id}`));
-      toast.success(`User '${userToDelete.name}' removed successfully.`);
-    } catch (error) { toast.error('Failed to remove user.'); }
-    finally {
-      setUserToDelete(null);
-      setProcessingId(null);
-    }
   };
 
   const handleTransferOrder = async (assignmentId, newVendorId) => {
@@ -679,10 +781,11 @@ const AdminPage = ({ handleSignOut }) => {
       const updates = {};
       const productsSummary = entriesToAssign.map(e => `${e.name} (${e.quantity} ${e.unit})`).join(', ');
       const entryIds = entriesToAssign.map(e => e.id);
+      const totalAmount = entriesToAssign.reduce((sum, entry) => sum + parseFloat(entry.total || 0), 0);
       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
 
-      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds };
+      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
@@ -740,7 +843,7 @@ const AdminPage = ({ handleSignOut }) => {
       users: <UserManagementContent users={users} toggleUserStatus={toggleUserStatus} openDeleteModal={setUserToDelete} processingId={processingId} />,
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
-      ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
+      ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
       items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
     };
@@ -770,8 +873,8 @@ const AdminPage = ({ handleSignOut }) => {
 
       {/* Modals */}
       <ConfirmationModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={handleDeleteItem} title="Delete Item" message={`Are you sure you want to delete the item '${itemToDelete?.name}'? This action cannot be undone.`} />
-      <ConfirmationModal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} onConfirm={handleDeleteUser} title="Delete User" message={`Are you sure you want to remove the user '${userToDelete?.name}'? This action cannot be undone.`} />
-      <ConfirmationModal isOpen={!!vendorToDelete} onClose={() => setVendorToDelete(null)} onConfirm={handleDeleteVendor} title="Delete Vendor" message={`Are you sure you want to remove the vendor '${vendorToDelete?.name}'? This action cannot be undone.`} />
+      <ConfirmationModal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} onConfirm={handleDeleteUser} title="Delete User" message={`This will permanently delete the user '${userToDelete?.name}' and all their associated assignments, bills, and items. This action cannot be undone.`} />
+      <ConfirmationModal isOpen={!!vendorToDelete} onClose={() => setVendorToDelete(null)} onConfirm={handleDeleteVendor} title="Delete Vendor" message={`This will permanently delete the vendor '${vendorToDelete?.name}' and all their assignments and bills. Ongoing orders will be returned to the queue. This cannot be undone.`} />
       <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={handleDeleteAssignment} title="Delete Assignment" message={`Are you sure you want to delete this assignment? The items will be returned to the assignment queue.`} />
 
       <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
