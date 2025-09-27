@@ -348,7 +348,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
           <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <input name="imageUrl" value={newItem.imageUrl} placeholder="Image URL" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" />
+          <input name="imageUrl" value={newItem.imageUrl} placeholder="Image URL or ID" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" />
           <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
             <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
@@ -709,7 +709,7 @@ const AdminPage = ({ handleSignOut }) => {
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
         billsSnapshot.forEach(snap => {
-          updates[`/bills/${snap.key}`] = null;
+          updates[`/bills/${billSnap.key}`] = null;
         });
       }
 
@@ -815,15 +815,31 @@ const AdminPage = ({ handleSignOut }) => {
     finally { setProcessingId(null); }
   };
 
-  const handleItemInputChange = (e) => setNewItem(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const cancelEdit = () => { setIsEditing(false); setCurrentItemId(null); setNewItem({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' }); };
+  const handleItemInputChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'imageUrl' && value && !value.startsWith('http')) {
+      const fullUrl = `https://drive.google.com/uc?export=view&id=${value}`;
+      setNewItem(prev => ({ ...prev, imageUrl: fullUrl }));
+    } else {
+      setNewItem(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setCurrentItemId(null);
+    setNewItem({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' });
+  };
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    if (Object.values(newItem).some(val => !val)) return toast.error('Please fill out all fields.');
+    const { name, rate, unit, category, location } = newItem;
+    if (!name || !rate || !unit || !category || !location) {
+      return toast.error('Please fill out all fields except Image URL.');
+    }
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
-      const itemData = { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location, imageUrl: newItem.imageUrl };
+      const itemData = { ...newItem, rate: parseFloat(newItem.rate) };
       if (isEditing) {
         await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
@@ -832,15 +848,41 @@ const AdminPage = ({ handleSignOut }) => {
         toast.success('Item created successfully.');
       }
       cancelEdit();
-    } catch (error) { toast.error('Failed to save item.'); }
-    finally { setProcessingId(null); }
+    } catch (error) {
+      toast.error('Failed to save item.');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
+
   const handleEditItem = (item) => {
-    setIsEditing(true); setCurrentItemId(item.id);
-    setNewItem({ name: item.name, rate: item.rate, unit: item.unit, category: item.category, location: item.location, imageUrl: item.imageUrl });
+    setIsEditing(true);
+    setCurrentItemId(item.id);
+    // Extract the ID from the Google Drive URL for a better editing experience
+    let imageUrlValue = item.imageUrl || '';
+    if (imageUrlValue.includes('drive.google.com')) {
+      try {
+        const url = new URL(imageUrlValue);
+        const id = url.searchParams.get('id');
+        if (id) {
+          imageUrlValue = id;
+        }
+      } catch (e) {
+        // If URL is malformed, just use the raw value
+      }
+    }
+    setNewItem({
+      name: item.name,
+      rate: item.rate,
+      unit: item.unit,
+      category: item.category,
+      location: item.location,
+      imageUrl: imageUrlValue
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
