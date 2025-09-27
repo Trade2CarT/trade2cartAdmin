@@ -349,7 +349,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
           <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <input name="imageFile" type="file" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" />
+          <input name="imageFile" type="file" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" accept="image/png, image/jpeg, image/jpg" />
           <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
             <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
@@ -359,7 +359,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4"><img src={item.imageUrl || 'https://placehold.co/100x100/e2e8f0/334155?text=No+Image'} alt={item.name} className="w-16 h-16 object-cover rounded-md" /></td><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4"><img src={item.imageUrl || 'https://placehold.co/100x100/e2e8f0/334155?text=No+Image'} alt={item.name} className="w-16 h-16 object-cover rounded-md" /></td><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -404,12 +404,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -439,7 +439,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -528,7 +528,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
