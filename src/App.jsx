@@ -821,18 +821,16 @@ const AdminPage = ({ handleSignOut }) => {
 
     if (name === 'imageUrl') {
       // Case 1: User pastes a standard Google Drive share link
-      if (value.includes('drive.google.com/file/d/')) {
-        const parts = value.split('/d/');
-        if (parts.length > 1) {
-          const id = parts[1].split('/')[0];
-          finalValue = `https://drive.google.com/uc?export=view&id=${id}`;
-        }
+      // e.g., https://drive.google.com/file/d/SOME_ID/view?usp=sharing
+      const shareLinkMatch = value.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (shareLinkMatch && shareLinkMatch[1]) {
+        const id = shareLinkMatch[1];
+        finalValue = `https://drive.google.com/uc?export=view&id=${id}`;
       }
       // Case 2: User pastes just an ID (and it's not another valid URL)
       else if (value && !value.startsWith('http')) {
         finalValue = `https://drive.google.com/uc?export=view&id=${value}`;
       }
-      // Case 3: User pastes a different URL or an already correct GDrive URL - do nothing, finalValue is already `value`.
     }
 
     setNewItem(prev => ({ ...prev, [name]: finalValue }));
@@ -879,7 +877,7 @@ const AdminPage = ({ handleSignOut }) => {
       unit: item.unit,
       category: item.category,
       location: item.location,
-      imageUrl: item.imageUrl || '' // Show the full, final URL in the input for editing
+      imageUrl: item.imageUrl || '' // Show the full, final URL from the database
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
