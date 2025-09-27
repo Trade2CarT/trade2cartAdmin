@@ -804,16 +804,30 @@ const AdminPage = ({ handleSignOut }) => {
     let finalImageUrl = newItem.imageUrl.trim();
     if (finalImageUrl) {
       const shareLinkMatch = finalImageUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+      let id = '';
+
       if (shareLinkMatch && shareLinkMatch[1]) {
-        finalImageUrl = `https://drive.google.com/uc?export=view&id=${shareLinkMatch[1]}`;
+        id = shareLinkMatch[1];
       } else if (!finalImageUrl.startsWith('http')) {
-        finalImageUrl = `https://drive.google.com/uc?export=view&id=${finalImageUrl}`;
+        id = finalImageUrl;
+      }
+
+      if (id) {
+        finalImageUrl = `https://drive.google.com/uc?export=view&id=${id}`;
       }
     }
 
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
-      const itemData = { ...newItem, imageUrl: finalImageUrl, rate: parseFloat(newItem.rate) };
+      const itemData = {
+        name: newItem.name,
+        rate: parseFloat(newItem.rate),
+        unit: newItem.unit,
+        category: newItem.category,
+        location: newItem.location,
+        imageUrl: finalImageUrl
+      };
+
       if (isEditing) {
         await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
@@ -834,27 +848,20 @@ const AdminPage = ({ handleSignOut }) => {
     setIsEditing(true);
     setCurrentItemId(item.id);
     let displayImageUrl = item.imageUrl || '';
-    if (displayImageUrl.includes('drive.google.com/uc?export=view&id=')) {
-      try {
-        const url = new URL(displayImageUrl);
-        const id = url.searchParams.get('id');
-        if (id) {
-          displayImageUrl = id;
-        }
-      } catch (e) {
-        // Keep the original URL if it's malformed
-      }
+
+    const idMatch = displayImageUrl.match(/drive\.google\.com\/uc\?.*?id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+      displayImageUrl = idMatch[1];
     }
+
     setNewItem({
-      name: item.name,
-      rate: item.rate,
-      unit: item.unit,
-      category: item.category,
-      location: item.location,
+      name: item.name, rate: item.rate, unit: item.unit,
+      category: item.category, location: item.location,
       imageUrl: displayImageUrl
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
