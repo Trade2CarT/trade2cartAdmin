@@ -10,7 +10,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
 
-// --- SVG ICONS (Corrected viewBox) ---
+// --- SVG ICONS ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
 const Package = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /><path d="M12 15H3l-1-5L2 2h20l-1 8h-9" /><path d="m9.5 9.4 1.35 1.35a.5.5 0 0 0 .7 0L13 9.4" /></svg>;
@@ -46,6 +46,21 @@ const isToday = (dateString) => {
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear();
 };
+
+const getGoogleDriveId = (url) => {
+  if (!url) return '';
+  // Tries to find the ID from a full share link or a direct link
+  const match = url.match(/drive\.google\.com\/(?:file\/d\/|uc\?.*?id=)([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  // Assumes the input is just the ID if it doesn't match a URL pattern
+  if (!url.startsWith('http')) {
+    return url;
+  }
+  return url; // Fallback to the original value if no ID is found
+};
+
 
 // --- Reusable UI Components ---
 const DashboardCard = ({ title, value, icon, color, onClick }) => (
@@ -796,35 +811,32 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    const { name, rate, unit, category, location } = newItem;
+    const { name, rate, unit, category, location, imageUrl } = newItem;
     if (!name || !rate || !unit || !category || !location) {
       return toast.error('Please fill out all required fields.');
     }
 
-    let finalImageUrl = newItem.imageUrl.trim();
-    if (finalImageUrl) {
-      const shareLinkMatch = finalImageUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-      let id = '';
+    let finalImageUrl = '';
+    const trimmedUrl = imageUrl.trim();
 
-      if (shareLinkMatch && shareLinkMatch[1]) {
-        id = shareLinkMatch[1];
-      } else if (!finalImageUrl.startsWith('http')) {
-        id = finalImageUrl;
-      }
-
+    if (trimmedUrl) {
+      const id = getGoogleDriveId(trimmedUrl);
       if (id) {
         finalImageUrl = `https://drive.google.com/uc?export=view&id=${id}`;
+      } else {
+        // If it's some other valid URL, keep it. Otherwise, clear it.
+        finalImageUrl = trimmedUrl.startsWith('http') ? trimmedUrl : '';
       }
     }
 
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
       const itemData = {
-        name: newItem.name,
-        rate: parseFloat(newItem.rate),
-        unit: newItem.unit,
-        category: newItem.category,
-        location: newItem.location,
+        name,
+        rate: parseFloat(rate),
+        unit,
+        category,
+        location,
         imageUrl: finalImageUrl
       };
 
@@ -847,17 +859,13 @@ const AdminPage = ({ handleSignOut }) => {
   const handleEditItem = (item) => {
     setIsEditing(true);
     setCurrentItemId(item.id);
-    let displayImageUrl = item.imageUrl || '';
-
-    const idMatch = displayImageUrl.match(/drive\.google\.com\/uc\?.*?id=([a-zA-Z0-9_-]+)/);
-    if (idMatch && idMatch[1]) {
-      displayImageUrl = idMatch[1];
-    }
-
     setNewItem({
-      name: item.name, rate: item.rate, unit: item.unit,
-      category: item.category, location: item.location,
-      imageUrl: displayImageUrl
+      name: item.name,
+      rate: item.rate,
+      unit: item.unit,
+      category: item.category,
+      location: item.location,
+      imageUrl: getGoogleDriveId(item.imageUrl) // Show just the ID for easy editing
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
