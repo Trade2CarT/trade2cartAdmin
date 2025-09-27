@@ -590,15 +590,10 @@ const AdminPage = ({ handleSignOut }) => {
     setLoading(true);
 
     const listeners = references.map(({ path, setter }) => {
-      // Start with the base reference
       let dataRef = ref(db, path);
-
-      // If the path is 'users', apply the query required by your security rules
       if (path === 'users') {
         dataRef = query(dataRef, orderByChild('phone'));
       }
-
-      // Use the (potentially modified) reference
       return onValue(dataRef, (snapshot) => {
         setter(firebaseObjectToArray(snapshot));
       }, (error) => toast.error(`Could not sync ${path}.`));
@@ -608,7 +603,6 @@ const AdminPage = ({ handleSignOut }) => {
     return () => listeners.forEach(unsubscribe => unsubscribe && unsubscribe());
   }, []);
 
-  // Memoized data
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
   const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned), [wasteEntries]);
   const ongoingAssignments = useMemo(() => allAssignments.filter(a => a.status === 'assigned'), [allAssignments]);
@@ -628,28 +622,21 @@ const AdminPage = ({ handleSignOut }) => {
     let affectedAssignmentsCount = 0;
 
     try {
-      // Find all assignments (ongoing and completed) for this vendor
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('vendorId'), equalTo(vendorId));
       const assignmentsSnapshot = await get(assignmentsQuery);
-
       if (assignmentsSnapshot.exists()) {
         assignmentsSnapshot.forEach(assignSnap => {
           const assignment = { id: assignSnap.key, ...assignSnap.val() };
           affectedAssignmentsCount++;
-
-          // If assignment is ongoing, return its items to the queue
           if (assignment.status === 'assigned' && assignment.entryIds) {
             assignment.entryIds.forEach(entryId => {
               updates[`/wasteEntries/${entryId}/isAssigned`] = false;
             });
           }
-
-          // Delete the assignment record
           updates[`/assignments/${assignment.id}`] = null;
         });
       }
 
-      // Find and delete all bills associated with this vendor
       const billsQuery = query(ref(db, 'bills'), orderByChild('vendorId'), equalTo(vendorId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -658,14 +645,10 @@ const AdminPage = ({ handleSignOut }) => {
         });
       }
 
-      // Delete the vendor record itself
       updates[`/vendors/${vendorId}`] = null;
-
       await update(ref(db), updates);
-
-      toast.success(`Vendor '${vendorToDelete.name}' and all related data (${affectedAssignmentsCount} assignments) have been permanently deleted.`);
+      toast.success(`Vendor '${vendorToDelete.name}' and all related data have been permanently deleted.`);
       setVendorToView(null);
-
     } catch (error) {
       toast.error('An error occurred during the deletion process.');
       console.error("Vendor deletion error:", error);
@@ -681,12 +664,8 @@ const AdminPage = ({ handleSignOut }) => {
     const userId = userToDelete.id;
     const userMobile = userToDelete.phone;
     const updates = {};
-
     try {
-      // Delete user's own record
       updates[`/users/${userId}`] = null;
-
-      // Find and delete all of the user's waste entries (unassigned)
       const wasteQuery = query(ref(db, 'wasteEntries'), orderByChild('mobile'), equalTo(userMobile));
       const wasteSnapshot = await get(wasteQuery);
       if (wasteSnapshot.exists()) {
@@ -694,8 +673,6 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/wasteEntries/${snap.key}`] = null;
         });
       }
-
-      // Find and delete all of the user's assignments (ongoing and completed)
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('userId'), equalTo(userId));
       const assignmentsSnapshot = await get(assignmentsQuery);
       if (assignmentsSnapshot.exists()) {
@@ -703,8 +680,6 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/assignments/${snap.key}`] = null;
         });
       }
-
-      // Find and delete all of the user's bills
       const billsQuery = query(ref(db, 'bills'), orderByChild('userId'), equalTo(userId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -712,7 +687,6 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/bills/${snap.key}`] = null;
         });
       }
-
       await update(ref(db), updates);
       toast.success(`User '${userToDelete.name}' and all their related data have been permanently deleted.`);
     } catch (error) {
@@ -724,8 +698,6 @@ const AdminPage = ({ handleSignOut }) => {
     }
   };
 
-
-  // --- CRUD Handlers ---
   const updateVendorStatus = async (id, status) => {
     setProcessingId(id);
     try {
@@ -735,7 +707,6 @@ const AdminPage = ({ handleSignOut }) => {
     } catch (error) { toast.error('Vendor status update failed.'); }
     finally { setProcessingId(null); }
   };
-
 
   const toggleUserStatus = async (user) => {
     setProcessingId(user.id);
@@ -773,7 +744,6 @@ const AdminPage = ({ handleSignOut }) => {
       updates[`/users/${assignmentToDelete.userId}/Status`] = 'Active';
       updates[`/users/${assignmentToDelete.userId}/currentAssignmentId`] = null;
       updates[`/users/${assignmentToDelete.userId}/otp`] = null;
-
       await update(ref(db), updates);
       toast.success('Assignment deleted. Items are available for re-assignment.');
     } catch (error) { toast.error('Failed to delete assignment.'); }
@@ -801,13 +771,11 @@ const AdminPage = ({ handleSignOut }) => {
       const totalAmount = entriesToAssign.reduce((sum, entry) => sum + parseFloat(entry.total || 0), 0);
       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
-
       updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
       updates[`/users/${user.id}/otp`] = newOtp;
-
       await update(ref(db), updates);
       toast.success(`Order for ${user.name} assigned to ${vendor.name}.`);
       setAssignments(prev => ({ ...prev, [mobile]: '' }));
@@ -817,25 +785,8 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemInputChange = (e) => {
     const { name, value } = e.target;
-    let finalValue = value;
-
-    if (name === 'imageUrl') {
-      // Case 1: User pastes a standard Google Drive share link
-      // e.g., https://drive.google.com/file/d/SOME_ID/view?usp=sharing
-      const shareLinkMatch = value.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-      if (shareLinkMatch && shareLinkMatch[1]) {
-        const id = shareLinkMatch[1];
-        finalValue = `https://drive.google.com/uc?export=view&id=${id}`;
-      }
-      // Case 2: User pastes just an ID (and it's not another valid URL)
-      else if (value && !value.startsWith('http')) {
-        finalValue = `https://drive.google.com/uc?export=view&id=${value}`;
-      }
-    }
-
-    setNewItem(prev => ({ ...prev, [name]: finalValue }));
+    setNewItem(prev => ({ ...prev, [name]: value }));
   };
-
 
   const cancelEdit = () => {
     setIsEditing(false);
@@ -847,11 +798,22 @@ const AdminPage = ({ handleSignOut }) => {
     e.preventDefault();
     const { name, rate, unit, category, location } = newItem;
     if (!name || !rate || !unit || !category || !location) {
-      return toast.error('Please fill out all fields except Image URL.');
+      return toast.error('Please fill out all required fields.');
     }
+
+    let finalImageUrl = newItem.imageUrl.trim();
+    if (finalImageUrl) {
+      const shareLinkMatch = finalImageUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (shareLinkMatch && shareLinkMatch[1]) {
+        finalImageUrl = `https://drive.google.com/uc?export=view&id=${shareLinkMatch[1]}`;
+      } else if (!finalImageUrl.startsWith('http')) {
+        finalImageUrl = `https://drive.google.com/uc?export=view&id=${finalImageUrl}`;
+      }
+    }
+
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
-      const itemData = { ...newItem, rate: parseFloat(newItem.rate) };
+      const itemData = { ...newItem, imageUrl: finalImageUrl, rate: parseFloat(newItem.rate) };
       if (isEditing) {
         await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
@@ -862,26 +824,37 @@ const AdminPage = ({ handleSignOut }) => {
       cancelEdit();
     } catch (error) {
       toast.error('Failed to save item.');
+      console.error("Save item error:", error);
     } finally {
       setProcessingId(null);
     }
   };
 
-
   const handleEditItem = (item) => {
     setIsEditing(true);
     setCurrentItemId(item.id);
+    let displayImageUrl = item.imageUrl || '';
+    if (displayImageUrl.includes('drive.google.com/uc?export=view&id=')) {
+      try {
+        const url = new URL(displayImageUrl);
+        const id = url.searchParams.get('id');
+        if (id) {
+          displayImageUrl = id;
+        }
+      } catch (e) {
+        // Keep the original URL if it's malformed
+      }
+    }
     setNewItem({
       name: item.name,
       rate: item.rate,
       unit: item.unit,
       category: item.category,
       location: item.location,
-      imageUrl: item.imageUrl || '' // Show the full, final URL from the database
+      imageUrl: displayImageUrl
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
@@ -892,10 +865,8 @@ const AdminPage = ({ handleSignOut }) => {
     finally { setItemToDelete(null); }
   };
 
-  // --- Render Logic ---
   const renderContent = () => {
     if (loading) return <div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>;
-
     const contentMap = {
       dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} setActiveTab={setActiveTab} />,
       users: <UserManagementContent users={users} toggleUserStatus={toggleUserStatus} openDeleteModal={setUserToDelete} processingId={processingId} />,
