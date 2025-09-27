@@ -336,7 +336,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">{isEditing ? 'Edit Item' : 'Create New Item'}</h3>
-        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
+        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
           <input name="name" value={newItem.name} placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
           <input name="rate" value={newItem.rate} placeholder="Rate" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
           <div className="relative">
@@ -348,6 +348,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
           <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
+          <input name="imageUrl" value={newItem.imageUrl} placeholder="Image URL" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" />
           <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
             <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
@@ -356,8 +357,8 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       </div>
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
+          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4"><img src={item.imageUrl || 'https://placehold.co/100x100/e2e8f0/334155?text=No+Image'} alt={item.name} className="w-16 h-16 object-cover rounded-md" /></td><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -566,7 +567,7 @@ const AdminPage = ({ handleSignOut }) => {
 
   // Component State
   const [assignments, setAssignments] = useState({});
-  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '' });
+  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' });
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -815,14 +816,14 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
   const handleItemInputChange = (e) => setNewItem(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const cancelEdit = () => { setIsEditing(false); setCurrentItemId(null); setNewItem({ name: '', rate: '', unit: '', category: '', location: '' }); };
+  const cancelEdit = () => { setIsEditing(false); setCurrentItemId(null); setNewItem({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' }); };
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
     if (Object.values(newItem).some(val => !val)) return toast.error('Please fill out all fields.');
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
-      const itemData = { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location };
+      const itemData = { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location, imageUrl: newItem.imageUrl };
       if (isEditing) {
         await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
@@ -837,7 +838,7 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleEditItem = (item) => {
     setIsEditing(true); setCurrentItemId(item.id);
-    setNewItem({ name: item.name, rate: item.rate, unit: item.unit, category: item.category, location: item.location });
+    setNewItem({ name: item.name, rate: item.rate, unit: item.unit, category: item.category, location: item.location, imageUrl: item.imageUrl });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
