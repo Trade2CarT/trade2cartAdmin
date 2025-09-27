@@ -10,7 +10,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyB9BAhvioLdoZsbWGvgPwfh20Punjz4c5o",
     authDomain: "trade2cart-prod.firebaseapp.com",
     projectId: "trade2cart-prod",
-    storageBucket: "trade2cart-prod.appspot.com",
+    storageBucket: "trade2cart-prod.firebasestorage.app", // <--- CORRECTED BUCKET URL
     messagingSenderId: "210178439049",
     appId: "1:210178439049:web:20a56da817b14c61da5358",
     measurementId: "G-LC5XQP9JPE",

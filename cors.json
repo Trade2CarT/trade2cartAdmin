@@ -1,0 +1,18 @@
+[
+    {
+        "origin": [
+            "https://trade2cart.trade.admin.trade2cart.in"
+        ],
+        "method": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE"
+        ],
+        "responseHeader": [
+            "Content-Type",
+            "Authorization"
+        ],
+        "maxAgeSeconds": 3600
+    }
+]
