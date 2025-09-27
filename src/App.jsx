@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
 
 // --- FIREBASE IMPORTS ---
-import { db, auth } from './firebase';
+import { db, auth, storage } from './firebase'; // Make sure to export storage from firebase.js
 import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+
 
 // --- TOASTIFY IMPORTS ---
 import { ToastContainer, toast } from 'react-toastify';
@@ -292,7 +294,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
-const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit }) => {
+const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
   const [newLocation, setNewLocation] = useState('');
@@ -300,6 +302,13 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
   const uniqueCategories = useMemo(() => [...new Set(items.map(item => item.category))], [items]);
   const uniqueUnits = useMemo(() => [...new Set(items.map(item => item.unit))], [items]);
   const uniqueLocations = useMemo(() => [...new Set(items.map(item => item.location))].filter(Boolean), [items]);
+
+  const handleImageChange = (e) => {
+    if (e.target.files[0]) {
+      setItemImage(e.target.files[0]);
+      setImagePreview(URL.createObjectURL(e.target.files[0]));
+    }
+  };
 
   const handleCopyLocation = async () => {
     if (!sourceLocation || !newLocation) return toast.info('Please select a source and provide a new location name.');
@@ -336,7 +345,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">{isEditing ? 'Edit Item' : 'Create New Item'}</h3>
-        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
+        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
           <input name="name" value={newItem.name} placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
           <input name="rate" value={newItem.rate} placeholder="Rate" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
           <div className="relative">
@@ -348,6 +357,10 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
           <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
+          <div>
+            <input type="file" onChange={handleImageChange} className="w-full p-1.5 border border-gray-300 rounded-md" />
+            {imagePreview && <img src={imagePreview} alt="Item Preview" className="mt-2 h-16 w-16 object-cover" />}
+          </div>
           <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
             <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
@@ -356,8 +369,12 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       </div>
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
+          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50">
+            <td className="px-6 py-4">
+              {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded-md" />}
+            </td>
+            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -402,12 +419,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -437,7 +454,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -526,7 +543,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
@@ -570,6 +587,9 @@ const AdminPage = ({ handleSignOut }) => {
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [itemImage, setItemImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
 
   // Modal States
   const [billToView, setBillToView] = useState(null);
@@ -815,14 +835,40 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
   const handleItemInputChange = (e) => setNewItem(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const cancelEdit = () => { setIsEditing(false); setCurrentItemId(null); setNewItem({ name: '', rate: '', unit: '', category: '', location: '' }); };
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setCurrentItemId(null);
+    setNewItem({ name: '', rate: '', unit: '', category: '', location: '' });
+    setItemImage(null);
+    setImagePreview(null);
+  };
+
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    if (Object.values(newItem).some(val => !val)) return toast.error('Please fill out all fields.');
+    if (Object.values(newItem).some(val => !val)) {
+      return toast.error('Please fill out all fields.');
+    }
     setProcessingId(isEditing ? currentItemId : 'add-item');
+
     try {
-      const itemData = { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location };
+      let imageUrl = isEditing ? items.find(i => i.id === currentItemId)?.imageUrl || '' : '';
+
+      if (itemImage) {
+        const imageRef = storageRef(storage, `item_images/${currentItemId || Date.now()}_${itemImage.name}`);
+        await uploadBytes(imageRef, itemImage);
+        imageUrl = await getDownloadURL(imageRef);
+      }
+
+      const itemData = {
+        name: newItem.name,
+        rate: newItem.rate,
+        unit: newItem.unit,
+        category: newItem.category,
+        location: newItem.location,
+        imageUrl: imageUrl
+      };
+
       if (isEditing) {
         await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
@@ -831,24 +877,57 @@ const AdminPage = ({ handleSignOut }) => {
         toast.success('Item created successfully.');
       }
       cancelEdit();
-    } catch (error) { toast.error('Failed to save item.'); }
-    finally { setProcessingId(null); }
+    } catch (error) {
+      console.error("Item save error:", error);
+      toast.error('Failed to save item.');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
+
   const handleEditItem = (item) => {
-    setIsEditing(true); setCurrentItemId(item.id);
-    setNewItem({ name: item.name, rate: item.rate, unit: item.unit, category: item.category, location: item.location });
+    setIsEditing(true);
+    setCurrentItemId(item.id);
+    setNewItem({
+      name: item.name,
+      rate: item.rate,
+      unit: item.unit,
+      category: item.category,
+      location: item.location
+    });
+    setImagePreview(item.imageUrl || null);
+    setItemImage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
+
+    // Check if the item has an image and get a reference to it
+    if (itemToDelete.imageUrl) {
+      const imageRef = storageRef(storage, itemToDelete.imageUrl);
+      try {
+        await deleteObject(imageRef);
+      } catch (error) {
+        // Log the error but proceed with deleting the database entry
+        console.error("Could not delete item image from storage:", error);
+        toast.warn("Could not remove the item's image from storage, but the item data will be deleted.");
+      }
+    }
+
+    // Now, delete the item from the Realtime Database
     try {
       await remove(ref(db, `items/${itemToDelete.id}`));
-      toast.success('Item deleted successfully.');
-    } catch (error) { toast.error('Item deletion failed.'); }
-    finally { setItemToDelete(null); }
+      toast.success('Item and its image deleted successfully.');
+    } catch (error) {
+      toast.error('Item deletion from the database failed.');
+    } finally {
+      setItemToDelete(null); // Close the confirmation modal
+    }
   };
+
 
   // --- Render Logic ---
   const renderContent = () => {
@@ -860,7 +939,7 @@ const AdminPage = ({ handleSignOut }) => {
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
-      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} />,
+      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
     };
     return contentMap[activeTab] || null;
