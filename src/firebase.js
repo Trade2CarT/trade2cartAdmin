@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 // --- 1. Import App Check and the ReCaptchaV3Provider ---
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
@@ -18,6 +19,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
 
 // --- 2. Initialize App Check ---
 // This connects your app to your reCAPTCHA v3 site key.
@@ -32,4 +34,4 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 // Export db and auth for use in other files
-export { db, auth };
+export { db, auth, storage };
