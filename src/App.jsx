@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
 
 // --- FIREBASE IMPORTS ---
-import { db, auth } from './firebase';
+import { db, auth, storage } from './firebase';
 import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 // --- TOASTIFY IMPORTS ---
@@ -46,21 +47,6 @@ const isToday = (dateString) => {
     date.getMonth() === today.getMonth() &&
     date.getFullYear() === today.getFullYear();
 };
-
-const getGoogleDriveId = (url) => {
-  if (!url) return '';
-  // Tries to find the ID from a full share link or a direct link
-  const match = url.match(/drive\.google\.com\/(?:file\/d\/|uc\?.*?id=)([a-zA-Z0-9_-]+)/);
-  if (match && match[1]) {
-    return match[1];
-  }
-  // Assumes the input is just the ID if it doesn't match a URL pattern
-  if (!url.startsWith('http')) {
-    return url;
-  }
-  return url; // Fallback to the original value if no ID is found
-};
-
 
 // --- Reusable UI Components ---
 const DashboardCard = ({ title, value, icon, color, onClick }) => (
@@ -307,7 +293,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
-const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit }) => {
+const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, imageFile, setImageFile }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
   const [newLocation, setNewLocation] = useState('');
@@ -363,7 +349,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
           <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <input name="imageUrl" value={newItem.imageUrl} placeholder="Image URL or ID" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" />
+          <input name="imageFile" type="file" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" />
           <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
             <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
@@ -583,6 +569,7 @@ const AdminPage = ({ handleSignOut }) => {
   // Component State
   const [assignments, setAssignments] = useState({});
   const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' });
+  const [imageFile, setImageFile] = useState(null);
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -798,46 +785,50 @@ const AdminPage = ({ handleSignOut }) => {
     finally { setProcessingId(null); }
   };
 
-  const handleItemInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewItem(prev => ({ ...prev, [name]: value }));
+  const handleInputChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === "imageFile") {
+      setImageFile(files[0]);
+    } else {
+      setNewItem(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const cancelEdit = () => {
     setIsEditing(false);
     setCurrentItemId(null);
     setNewItem({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' });
+    setImageFile(null);
   };
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    const { name, rate, unit, category, location, imageUrl } = newItem;
+    const { name, rate, unit, category, location } = newItem;
     if (!name || !rate || !unit || !category || !location) {
       return toast.error('Please fill out all required fields.');
     }
 
-    let finalImageUrl = '';
-    const trimmedUrl = imageUrl.trim();
-
-    if (trimmedUrl) {
-      const id = getGoogleDriveId(trimmedUrl);
-      if (id) {
-        finalImageUrl = `https://drive.google.com/uc?export=view&id=${id}`;
-      } else {
-        // If it's some other valid URL, keep it. Otherwise, clear it.
-        finalImageUrl = trimmedUrl.startsWith('http') ? trimmedUrl : '';
-      }
-    }
-
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
+      let imageUrl = isEditing ? items.find(i => i.id === currentItemId).imageUrl : '';
+
+      if (imageFile) {
+        if (isEditing && imageUrl) {
+          const oldImageRef = storageRef(storage, imageUrl);
+          await deleteObject(oldImageRef).catch(err => console.warn("Old image deletion failed, it might not exist.", err));
+        }
+        const newImageRef = storageRef(storage, `item_images/${Date.now()}_${imageFile.name}`);
+        const snapshot = await uploadBytes(newImageRef, imageFile);
+        imageUrl = await getDownloadURL(snapshot.ref);
+      }
+
       const itemData = {
         name,
         rate: parseFloat(rate),
         unit,
         category,
         location,
-        imageUrl: finalImageUrl
+        imageUrl
       };
 
       if (isEditing) {
@@ -865,8 +856,9 @@ const AdminPage = ({ handleSignOut }) => {
       unit: item.unit,
       category: item.category,
       location: item.location,
-      imageUrl: getGoogleDriveId(item.imageUrl) // Show just the ID for easy editing
+      imageUrl: item.imageUrl
     });
+    setImageFile(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -874,6 +866,10 @@ const AdminPage = ({ handleSignOut }) => {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
+      if (itemToDelete.imageUrl) {
+        const imageRef = storageRef(storage, itemToDelete.imageUrl);
+        await deleteObject(imageRef).catch(err => console.warn("Image deletion failed, it might not exist.", err));
+      }
       await remove(ref(db, `items/${itemToDelete.id}`));
       toast.success('Item deleted successfully.');
     } catch (error) { toast.error('Item deletion failed.'); }
@@ -888,7 +884,7 @@ const AdminPage = ({ handleSignOut }) => {
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
-      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} />,
+      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} imageFile={imageFile} setImageFile={setImageFile} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
     };
     return contentMap[activeTab] || null;
