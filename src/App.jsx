@@ -709,7 +709,7 @@ const AdminPage = ({ handleSignOut }) => {
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
         billsSnapshot.forEach(snap => {
-          updates[`/bills/${billSnap.key}`] = null;
+          updates[`/bills/${snap.key}`] = null;
         });
       }
 
@@ -817,13 +817,27 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemInputChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'imageUrl' && value && !value.startsWith('http')) {
-      const fullUrl = `https://drive.google.com/uc?export=view&id=${value}`;
-      setNewItem(prev => ({ ...prev, imageUrl: fullUrl }));
-    } else {
-      setNewItem(prev => ({ ...prev, [name]: value }));
+    let finalValue = value;
+
+    if (name === 'imageUrl') {
+      // Case 1: User pastes a standard Google Drive share link
+      if (value.includes('drive.google.com/file/d/')) {
+        const parts = value.split('/d/');
+        if (parts.length > 1) {
+          const id = parts[1].split('/')[0];
+          finalValue = `https://drive.google.com/uc?export=view&id=${id}`;
+        }
+      }
+      // Case 2: User pastes just an ID (and it's not another valid URL)
+      else if (value && !value.startsWith('http')) {
+        finalValue = `https://drive.google.com/uc?export=view&id=${value}`;
+      }
+      // Case 3: User pastes a different URL or an already correct GDrive URL - do nothing, finalValue is already `value`.
     }
+
+    setNewItem(prev => ({ ...prev, [name]: finalValue }));
   };
+
 
   const cancelEdit = () => {
     setIsEditing(false);
@@ -859,26 +873,13 @@ const AdminPage = ({ handleSignOut }) => {
   const handleEditItem = (item) => {
     setIsEditing(true);
     setCurrentItemId(item.id);
-    // Extract the ID from the Google Drive URL for a better editing experience
-    let imageUrlValue = item.imageUrl || '';
-    if (imageUrlValue.includes('drive.google.com')) {
-      try {
-        const url = new URL(imageUrlValue);
-        const id = url.searchParams.get('id');
-        if (id) {
-          imageUrlValue = id;
-        }
-      } catch (e) {
-        // If URL is malformed, just use the raw value
-      }
-    }
     setNewItem({
       name: item.name,
       rate: item.rate,
       unit: item.unit,
       category: item.category,
       location: item.location,
-      imageUrl: imageUrlValue
+      imageUrl: item.imageUrl || '' // Show the full, final URL in the input for editing
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
