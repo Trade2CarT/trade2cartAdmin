@@ -106,12 +106,21 @@ const TabButton = ({ id, label, activeTab, setActiveTab }) => (
 // --- Dashboard Content Components ---
 const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
   const stats = useMemo(() => {
-    const pendingAssignments = wasteEntries.filter(w => !w.isAssigned).length;
-    const todaysOrders = wasteEntries.filter(w => isToday(w.timestamp)).length;
+    // For Pending Assignments: Count unique customers with unassigned entries
+    const unassignedEntries = wasteEntries.filter(w => !w.isAssigned);
+    const pendingCustomers = new Set(unassignedEntries.map(w => w.mobile));
+    const pendingAssignments = pendingCustomers.size;
+
+    // For Today's Orders: Count unique customers who placed an order today
+    const todaysEntries = wasteEntries.filter(w => isToday(w.timestamp));
+    const todayCustomers = new Set(todaysEntries.map(w => w.mobile));
+    const todaysOrders = todayCustomers.size;
+
     const totalUsers = users.length;
     const activeVendors = vendors.filter(v => v.status === 'approved').length;
     return { pendingAssignments, todaysOrders, totalUsers, activeVendors };
   }, [users, vendors, wasteEntries]);
+
 
   return (
     <div>
@@ -374,7 +383,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             <td className="px-6 py-4">
               {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded-md" />}
             </td>
-            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -419,12 +428,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -454,7 +463,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -543,7 +552,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
