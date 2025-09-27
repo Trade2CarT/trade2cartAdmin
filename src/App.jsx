@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
 
 // --- FIREBASE IMPORTS ---
-import { db, auth, storage } from './firebase';
+import { db, auth } from './firebase';
 import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 
 // --- TOASTIFY IMPORTS ---
@@ -11,7 +10,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
 
-// --- SVG ICONS ---
+// --- SVG ICONS (Corrected viewBox) ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
 const Package = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /><path d="M12 15H3l-1-5L2 2h20l-1 8h-9" /><path d="m9.5 9.4 1.35 1.35a.5.5 0 0 0 .7 0L13 9.4" /></svg>;
@@ -293,7 +292,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
-const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, imageFile, setImageFile }) => {
+const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
   const [newLocation, setNewLocation] = useState('');
@@ -337,7 +336,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       </div>
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">{isEditing ? 'Edit Item' : 'Create New Item'}</h3>
-        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
           <input name="name" value={newItem.name} placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
           <input name="rate" value={newItem.rate} placeholder="Rate" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
           <div className="relative">
@@ -349,7 +348,6 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
           <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <input name="imageFile" type="file" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" accept="image/png, image/jpeg, image/jpg" />
           <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
             <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
@@ -358,8 +356,8 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       </div>
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4"><img src={item.imageUrl || 'https://placehold.co/100x100/e2e8f0/334155?text=No+Image'} alt={item.name} className="w-16 h-16 object-cover rounded-md" /></td><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
+          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -404,12 +402,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -439,7 +437,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -528,7 +526,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
@@ -568,8 +566,7 @@ const AdminPage = ({ handleSignOut }) => {
 
   // Component State
   const [assignments, setAssignments] = useState({});
-  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' });
-  const [imageFile, setImageFile] = useState(null);
+  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '' });
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -592,10 +589,15 @@ const AdminPage = ({ handleSignOut }) => {
     setLoading(true);
 
     const listeners = references.map(({ path, setter }) => {
+      // Start with the base reference
       let dataRef = ref(db, path);
+
+      // If the path is 'users', apply the query required by your security rules
       if (path === 'users') {
         dataRef = query(dataRef, orderByChild('phone'));
       }
+
+      // Use the (potentially modified) reference
       return onValue(dataRef, (snapshot) => {
         setter(firebaseObjectToArray(snapshot));
       }, (error) => toast.error(`Could not sync ${path}.`));
@@ -605,6 +607,7 @@ const AdminPage = ({ handleSignOut }) => {
     return () => listeners.forEach(unsubscribe => unsubscribe && unsubscribe());
   }, []);
 
+  // Memoized data
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
   const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned), [wasteEntries]);
   const ongoingAssignments = useMemo(() => allAssignments.filter(a => a.status === 'assigned'), [allAssignments]);
@@ -624,21 +627,28 @@ const AdminPage = ({ handleSignOut }) => {
     let affectedAssignmentsCount = 0;
 
     try {
+      // Find all assignments (ongoing and completed) for this vendor
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('vendorId'), equalTo(vendorId));
       const assignmentsSnapshot = await get(assignmentsQuery);
+
       if (assignmentsSnapshot.exists()) {
         assignmentsSnapshot.forEach(assignSnap => {
           const assignment = { id: assignSnap.key, ...assignSnap.val() };
           affectedAssignmentsCount++;
+
+          // If assignment is ongoing, return its items to the queue
           if (assignment.status === 'assigned' && assignment.entryIds) {
             assignment.entryIds.forEach(entryId => {
               updates[`/wasteEntries/${entryId}/isAssigned`] = false;
             });
           }
+
+          // Delete the assignment record
           updates[`/assignments/${assignment.id}`] = null;
         });
       }
 
+      // Find and delete all bills associated with this vendor
       const billsQuery = query(ref(db, 'bills'), orderByChild('vendorId'), equalTo(vendorId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -647,10 +657,14 @@ const AdminPage = ({ handleSignOut }) => {
         });
       }
 
+      // Delete the vendor record itself
       updates[`/vendors/${vendorId}`] = null;
+
       await update(ref(db), updates);
-      toast.success(`Vendor '${vendorToDelete.name}' and all related data have been permanently deleted.`);
+
+      toast.success(`Vendor '${vendorToDelete.name}' and all related data (${affectedAssignmentsCount} assignments) have been permanently deleted.`);
       setVendorToView(null);
+
     } catch (error) {
       toast.error('An error occurred during the deletion process.');
       console.error("Vendor deletion error:", error);
@@ -666,8 +680,12 @@ const AdminPage = ({ handleSignOut }) => {
     const userId = userToDelete.id;
     const userMobile = userToDelete.phone;
     const updates = {};
+
     try {
+      // Delete user's own record
       updates[`/users/${userId}`] = null;
+
+      // Find and delete all of the user's waste entries (unassigned)
       const wasteQuery = query(ref(db, 'wasteEntries'), orderByChild('mobile'), equalTo(userMobile));
       const wasteSnapshot = await get(wasteQuery);
       if (wasteSnapshot.exists()) {
@@ -675,6 +693,8 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/wasteEntries/${snap.key}`] = null;
         });
       }
+
+      // Find and delete all of the user's assignments (ongoing and completed)
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('userId'), equalTo(userId));
       const assignmentsSnapshot = await get(assignmentsQuery);
       if (assignmentsSnapshot.exists()) {
@@ -682,6 +702,8 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/assignments/${snap.key}`] = null;
         });
       }
+
+      // Find and delete all of the user's bills
       const billsQuery = query(ref(db, 'bills'), orderByChild('userId'), equalTo(userId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -689,6 +711,7 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/bills/${snap.key}`] = null;
         });
       }
+
       await update(ref(db), updates);
       toast.success(`User '${userToDelete.name}' and all their related data have been permanently deleted.`);
     } catch (error) {
@@ -700,6 +723,8 @@ const AdminPage = ({ handleSignOut }) => {
     }
   };
 
+
+  // --- CRUD Handlers ---
   const updateVendorStatus = async (id, status) => {
     setProcessingId(id);
     try {
@@ -709,6 +734,7 @@ const AdminPage = ({ handleSignOut }) => {
     } catch (error) { toast.error('Vendor status update failed.'); }
     finally { setProcessingId(null); }
   };
+
 
   const toggleUserStatus = async (user) => {
     setProcessingId(user.id);
@@ -746,6 +772,7 @@ const AdminPage = ({ handleSignOut }) => {
       updates[`/users/${assignmentToDelete.userId}/Status`] = 'Active';
       updates[`/users/${assignmentToDelete.userId}/currentAssignmentId`] = null;
       updates[`/users/${assignmentToDelete.userId}/otp`] = null;
+
       await update(ref(db), updates);
       toast.success('Assignment deleted. Items are available for re-assignment.');
     } catch (error) { toast.error('Failed to delete assignment.'); }
@@ -773,11 +800,13 @@ const AdminPage = ({ handleSignOut }) => {
       const totalAmount = entriesToAssign.reduce((sum, entry) => sum + parseFloat(entry.total || 0), 0);
       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
+
       updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
       updates[`/users/${user.id}/otp`] = newOtp;
+
       await update(ref(db), updates);
       toast.success(`Order for ${user.name} assigned to ${vendor.name}.`);
       setAssignments(prev => ({ ...prev, [mobile]: '' }));
@@ -785,52 +814,15 @@ const AdminPage = ({ handleSignOut }) => {
     finally { setProcessingId(null); }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === "imageFile") {
-      setImageFile(files[0]);
-    } else {
-      setNewItem(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setCurrentItemId(null);
-    setNewItem({ name: '', rate: '', unit: '', category: '', location: '', imageUrl: '' });
-    setImageFile(null);
-  };
+  const handleItemInputChange = (e) => setNewItem(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const cancelEdit = () => { setIsEditing(false); setCurrentItemId(null); setNewItem({ name: '', rate: '', unit: '', category: '', location: '' }); };
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    const { name, rate, unit, category, location } = newItem;
-    if (!name || !rate || !unit || !category || !location) {
-      return toast.error('Please fill out all required fields.');
-    }
-
+    if (Object.values(newItem).some(val => !val)) return toast.error('Please fill out all fields.');
     setProcessingId(isEditing ? currentItemId : 'add-item');
     try {
-      let imageUrl = isEditing ? items.find(i => i.id === currentItemId).imageUrl : '';
-
-      if (imageFile) {
-        if (isEditing && imageUrl) {
-          const oldImageRef = storageRef(storage, imageUrl);
-          await deleteObject(oldImageRef).catch(err => console.warn("Old image deletion failed, it might not exist.", err));
-        }
-        const newImageRef = storageRef(storage, `item_images/${Date.now()}_${imageFile.name}`);
-        const snapshot = await uploadBytes(newImageRef, imageFile);
-        imageUrl = await getDownloadURL(snapshot.ref);
-      }
-
-      const itemData = {
-        name,
-        rate: parseFloat(rate),
-        unit,
-        category,
-        location,
-        imageUrl
-      };
-
+      const itemData = { name: newItem.name, rate: newItem.rate, unit: newItem.unit, category: newItem.category, location: newItem.location };
       if (isEditing) {
         await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
@@ -839,52 +831,36 @@ const AdminPage = ({ handleSignOut }) => {
         toast.success('Item created successfully.');
       }
       cancelEdit();
-    } catch (error) {
-      toast.error('Failed to save item.');
-      console.error("Save item error:", error);
-    } finally {
-      setProcessingId(null);
-    }
+    } catch (error) { toast.error('Failed to save item.'); }
+    finally { setProcessingId(null); }
   };
 
   const handleEditItem = (item) => {
-    setIsEditing(true);
-    setCurrentItemId(item.id);
-    setNewItem({
-      name: item.name,
-      rate: item.rate,
-      unit: item.unit,
-      category: item.category,
-      location: item.location,
-      imageUrl: item.imageUrl
-    });
-    setImageFile(null);
+    setIsEditing(true); setCurrentItemId(item.id);
+    setNewItem({ name: item.name, rate: item.rate, unit: item.unit, category: item.category, location: item.location });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      if (itemToDelete.imageUrl) {
-        const imageRef = storageRef(storage, itemToDelete.imageUrl);
-        await deleteObject(imageRef).catch(err => console.warn("Image deletion failed, it might not exist.", err));
-      }
       await remove(ref(db, `items/${itemToDelete.id}`));
       toast.success('Item deleted successfully.');
     } catch (error) { toast.error('Item deletion failed.'); }
     finally { setItemToDelete(null); }
   };
 
+  // --- Render Logic ---
   const renderContent = () => {
     if (loading) return <div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>;
+
     const contentMap = {
       dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} setActiveTab={setActiveTab} />,
       users: <UserManagementContent users={users} toggleUserStatus={toggleUserStatus} openDeleteModal={setUserToDelete} processingId={processingId} />,
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
-      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} imageFile={imageFile} setImageFile={setImageFile} />,
+      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
     };
     return contentMap[activeTab] || null;
