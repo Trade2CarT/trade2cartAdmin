@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useMemo, Suspense } from 'react';
+import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
 
 // --- FIREBASE IMPORTS ---
 import { db, auth, storage } from './firebase'; // Make sure to export storage from firebase.js
@@ -11,6 +13,14 @@ import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "fi
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
+
+// --- LAZY LOAD COMPONENTS ---
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+const VendorBilling = lazy(() => import('./pages/VendorBilling'));
+const VendorOtp = lazy(() => import('./pages/VendorOtp'));
+const AdminProcess = lazy(() => import('./pages/AdminProcess'));
+const VendorOrders = lazy(() => import('./pages/VendorOrders'));
+
 
 // --- SVG ICONS (Corrected viewBox) ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
@@ -383,7 +393,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             <td className="px-6 py-4">
               {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded-md" />}
             </td>
-            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">鈧箋item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -428,12 +438,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -463,7 +473,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -552,7 +562,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
@@ -968,11 +978,16 @@ const AdminPage = ({ handleSignOut }) => {
               <TabButton id="ongoing" label="Ongoing Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="items" label="Manage Items" activeTab={activeTab} setActiveTab={setActiveTab} />
               <TabButton id="billing" label="Billing" activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TabButton id="vendor-billing" label="Vendor Billing" activeTab={activeTab} setActiveTab={setActiveTab} />
             </nav>
           </div>
           <div className="mt-auto pt-4"><button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200"><SignOutIcon className="w-5 h-5" /> Sign Out</button></div>
         </aside>
-        <main className="flex-1 p-4 sm:p-6 lg:p-8"><Suspense fallback={<div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>}>{renderContent()}</Suspense></main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>}>
+            {activeTab === 'vendor-billing' ? <VendorBilling /> : renderContent()}
+          </Suspense>
+        </main>
       </div>
 
       {/* Modals */}
@@ -985,32 +1000,6 @@ const AdminPage = ({ handleSignOut }) => {
       {billToView && <BillModal bill={billToView} onClose={() => setBillToView(null)} />}
       {vendorToView && <VendorDetailModal vendor={vendorToView} onClose={() => setVendorToView(null)} onUpdateStatus={updateVendorStatus} onDelete={setVendorToDelete} setSelectedImage={setSelectedImage} processingId={processingId} />}
       <TransferOrderModal isOpen={transferModalState.isOpen} onClose={() => setTransferModalState({ isOpen: false, assignment: null })} onConfirm={handleTransferOrder} assignment={transferModalState.assignment} vendors={approvedVendors} processingId={processingId} />
-    </div>
-  );
-};
-
-
-// --- Login Page Component ---
-const AdminLogin = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const handleLogin = async (e) => {
-    e.preventDefault(); setLoading(true);
-    try { await signInWithEmailAndPassword(auth, email, password); }
-    catch (err) { toast.error('Login Failed. Please check your credentials.'); }
-    finally { setLoading(false); }
-  };
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md mx-4">
-        <h1 className="text-2xl font-bold text-center text-gray-800">Admin Panel Login</h1>
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div><label htmlFor="email" className="text-sm font-medium text-gray-700">Email</label><input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" /></div>
-          <div><label htmlFor="password" className="text-sm font-medium text-gray-700">Password</label><input id="password" name="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" /></div>
-          <div><button type="submit" disabled={loading} className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400">{loading ? <Loader className="w-5 h-5 animate-spin" /> : 'Sign In'}</button></div>
-        </form>
-      </div>
     </div>
   );
 };
@@ -1040,10 +1029,22 @@ const App = () => {
   }
 
   return (
-    <>
-      {user ? <AdminPage handleSignOut={handleSignOut} /> : <AdminLogin />}
-      <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="light" />
-    </>
+    <Router>
+      <>
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-100"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>}>
+          <Routes>
+            <Route path="/login" element={user ? <Navigate to="/" /> : <AdminLogin />} />
+            <Route path="/" element={user ? <AdminPage handleSignOut={handleSignOut} /> : <Navigate to="/login" />}>
+              <Route path="vendor-billing" element={<VendorBilling />} />
+              <Route path="vendor-orders/:vendorId" element={<VendorOrders />} />
+              <Route path="vendor-otp/:vendorId/:assignmentId" element={<VendorOtp />} />
+              <Route path="admin-process/:assignmentId" element={<AdminProcess />} />
+            </Route>
+          </Routes>
+        </Suspense>
+        <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="light" />
+      </>
+    </Router>
   );
 };
 
