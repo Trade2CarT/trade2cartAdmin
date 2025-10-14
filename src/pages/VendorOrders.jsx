@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ref, onValue } from 'firebase/database';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ref, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
 import { db } from '../firebase';
-
-// Simple SVG for the arrow icon
-const ChevronRight = () => (
-    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
-);
 
 const Loader = () => (
     <div className="flex justify-center items-center p-10">
@@ -14,65 +9,85 @@ const Loader = () => (
     </div>
 );
 
-const VendorBilling = () => {
-    const [vendors, setVendors] = useState([]);
-    const [loading, setLoading] = useState(true);
+const VendorOrders = () => {
+    const { vendorId } = useParams();
     const navigate = useNavigate();
+    const [assignments, setAssignments] = useState([]);
+    const [vendor, setVendor] = useState(null);
+    const [users, setUsers] = useState({});
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const vendorsRef = ref(db, 'vendors');
-        const unsubscribe = onValue(vendorsRef, (snapshot) => {
+        const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('vendorId'), equalTo(vendorId));
+        const unsubscribeAssignments = onValue(assignmentsQuery, (snapshot) => {
             const data = snapshot.val();
-            const vendorList = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
-            setVendors(vendorList.filter(vendor => vendor.status === 'approved'));
+            const assignmentList = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+            setAssignments(assignmentList.filter(a => a.status === 'assigned'));
             setLoading(false);
-        }, () => setLoading(false));
+        });
 
-        return () => unsubscribe();
-    }, []);
+        const usersRef = ref(db, 'users');
+        const unsubscribeUsers = onValue(usersRef, (snapshot) => {
+            setUsers(snapshot.val() || {});
+        });
+
+        const vendorRef = ref(db, `vendors/${vendorId}`);
+        get(vendorRef).then(snapshot => {
+            if (snapshot.exists()) setVendor(snapshot.val());
+        });
+
+        return () => {
+            unsubscribeAssignments();
+            unsubscribeUsers();
+        };
+    }, [vendorId]);
 
     if (loading) {
         return <Loader />;
     }
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Vendor Billing</h2>
-            <p className="text-gray-600 mb-8">Select a vendor to view their assigned orders and create a bill on their behalf.</p>
+        <div className="max-w-5xl mx-auto">
+            <button onClick={() => navigate('/vendor-billing')} className="text-sm text-blue-600 hover:underline mb-4">&larr; Back to Vendors</button>
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Assigned Orders</h2>
+            <p className="text-gray-600 mb-8">Showing pending orders for <span className="font-semibold">{vendor?.name || '...'}</span>.</p>
 
-            <div className="bg-white rounded-xl shadow-md">
-                <div className="divide-y divide-gray-200">
-                    {vendors.length > 0 ? vendors.map(vendor => (
-                        <div
-                            key={vendor.id}
-                            className="p-4 sm:p-6 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors"
-                            onClick={() => navigate(`/vendor-orders/${vendor.id}`)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => e.key === 'Enter' && navigate(`/vendor-orders/${vendor.id}`)}
-                        >
-                            <div className="flex items-center gap-4">
-                                {vendor.profilePhotoURL ? (
-                                    <img src={vendor.profilePhotoURL} alt={vendor.name} className="w-12 h-12 rounded-full object-cover" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xl">
-                                        {vendor.name.charAt(0)}
-                                    </div>
-                                )}
-                                <div>
-                                    <p className="font-semibold text-lg text-gray-900">{vendor.name}</p>
-                                    <p className="text-sm text-gray-500">{vendor.phone} &middot; {vendor.location}</p>
-                                </div>
-                            </div>
-                            <ChevronRight />
-                        </div>
-                    )) : (
-                        <p className="p-8 text-center text-gray-500">No approved vendors found.</p>
-                    )}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-600">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-6 py-4">Customer</th>
+                                <th scope="col" className="px-6 py-4">Phone</th>
+                                <th scope="col" className="px-6 py-4">Address</th>
+                                <th scope="col" className="px-6 py-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {assignments.length > 0 ? assignments.map(assignment => (
+                                <tr key={assignment.id} className="bg-white border-b hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-gray-900">{users[assignment.userId]?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4">{assignment.mobile}</td>
+                                    <td className="px-6 py-4 text-gray-500 max-w-xs truncate">{users[assignment.userId]?.address || 'Not available'}</td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button
+                                            onClick={() => navigate(`/vendor-otp/${vendorId}/${assignment.id}`)}
+                                            className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg text-xs hover:bg-blue-700 transition-colors">
+                                            Create Bill
+                                        </button>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan="4" className="text-center py-12 text-gray-500">No assigned orders for this vendor.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     );
 };
 
-export default VendorBilling;
+export default VendorOrders;
