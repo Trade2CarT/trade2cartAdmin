@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ref, get, onValue, push, update } from 'firebase/database';
 import { db } from '../firebase';
 
+// --- ICONS ---
 const Loader = () => (
     <div className="flex justify-center items-center h-full">
         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
 );
-
-const TrashIcon = () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-);
+const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>;
+const PlusIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>;
+const MinusIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>;
 
 
 const AdminProcess = () => {
@@ -29,8 +29,26 @@ const AdminProcess = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
+    // --- BUG FIX: Ref to handle clicks outside the search component ---
+    const searchContainerRef = useRef(null);
+
+    useEffect(() => {
+        // This effect closes the dropdown if a click happens outside of the search container
+        const handleClickOutside = (event) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+                setIsSearchFocused(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true);
             try {
                 const assignmentRef = ref(db, `assignments/${assignmentId}`);
                 const assignmentSnapshot = await get(assignmentRef);
@@ -44,14 +62,15 @@ const AdminProcess = () => {
 
                 const userRef = ref(db, `users/${assignmentData.userId}`);
                 const userSnapshot = await get(userRef);
-                setCustomer(userSnapshot.val());
+                if (userSnapshot.exists()) setCustomer(userSnapshot.val());
 
                 const vendorRef = ref(db, `vendors/${assignmentData.vendorId}`);
                 const vendorSnapshot = await get(vendorRef);
-                setVendor(vendorSnapshot.val());
+                if (vendorSnapshot.exists()) setVendor(vendorSnapshot.val());
 
             } catch (error) {
                 toast.error("Failed to load critical order data.");
+                console.error("Data fetch error:", error);
             } finally {
                 setLoading(false);
             }
@@ -72,12 +91,12 @@ const AdminProcess = () => {
         const vendorLocation = vendor.location?.toLowerCase();
         const itemsInLocation = masterItems.filter(item => item.location?.toLowerCase() === vendorLocation);
 
-        if (searchTerm) {
+        if (searchTerm.trim()) {
             return itemsInLocation.filter(item =>
-                item.name.toLowerCase().includes(searchTerm.toLowerCase())
+                item.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
             );
         }
-        return itemsInLocation; // Show all items for the location on focus if no search term
+        return itemsInLocation;
     }, [searchTerm, masterItems, vendor, isSearchFocused]);
 
     const handleAddItem = (item) => {
@@ -92,12 +111,13 @@ const AdminProcess = () => {
     };
 
     const handleUpdateQuantity = (billItemId, newQuantity) => {
-        newQuantity = parseFloat(newQuantity) || 0;
-        if (newQuantity <= 0) {
+        const quantity = parseFloat(newQuantity);
+        if (isNaN(quantity) || quantity <= 0) {
+            // If input is cleared or invalid, remove the item
             setBillItems(prevItems => prevItems.filter(item => item.billItemId !== billItemId));
         } else {
             setBillItems(prevItems => prevItems.map(item =>
-                item.billItemId === billItemId ? { ...item, weight: newQuantity, total: newQuantity * parseFloat(item.rate) } : item
+                item.billItemId === billItemId ? { ...item, weight: quantity, total: quantity * parseFloat(item.rate) } : item
             ));
         }
     };
@@ -120,7 +140,7 @@ const AdminProcess = () => {
                 assignmentID: assignmentId,
                 vendorId: assignment.vendorId,
                 userId: assignment.userId,
-                billItems: billItems.map(({ id, billItemId, ...item }) => item), // Clean up data for DB
+                billItems: billItems.map(({ id, billItemId, ...item }) => item),
                 totalBill,
                 timestamp: new Date().toISOString(),
                 mobile: assignment.mobile,
@@ -138,7 +158,7 @@ const AdminProcess = () => {
 
             await update(ref(db), updates);
             toast.success("Bill saved and order completed successfully!");
-            navigate('/billing'); // Navigate to the main billing page to see the new entry
+            navigate('/billing');
         } catch (error) {
             toast.error("An error occurred while submitting the bill.");
             console.error("Bill submission error:", error);
@@ -153,14 +173,12 @@ const AdminProcess = () => {
 
     return (
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            <button onClick={() => navigate(-1)} className="text-sm text-blue-600 hover:underline mb-6">&larr; Back to Orders</button>
             <h1 className="text-3xl font-bold text-gray-900 mb-8">Create Bill</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                {/* Left Column: Item Selection & Bill Summary */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Item Selection */}
-                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                    <div className="bg-white p-6 rounded-xl shadow-lg" ref={searchContainerRef}>
                         <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Items to Bill</h2>
                         <div className="relative">
                             <input
@@ -168,60 +186,59 @@ const AdminProcess = () => {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onFocus={() => setIsSearchFocused(true)}
-                                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)} // Delay to allow click on results
                                 placeholder="Search for items by name..."
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-shadow"
                             />
                             {isSearchFocused && (
                                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-2xl">
                                     {searchResults.length > 0 ? searchResults.map(item => (
-                                        <div key={item.id} onClick={() => handleAddItem(item)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center">
+                                        <div key={item.id} onClick={() => handleAddItem(item)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors">
                                             <span>{item.name}</span>
-                                            <span className="text-sm text-gray-500">₹{item.rate}/{item.unit}</span>
+                                            <span className="text-sm text-gray-500">₹{parseFloat(item.rate).toFixed(2)}/{item.unit}</span>
                                         </div>
                                     )) : (
-                                        <p className="px-4 py-3 text-gray-500">No items found for this location.</p>
+                                        <p className="px-4 py-3 text-gray-500">No items found for '{vendor?.location}'.</p>
                                     )}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Bill Summary */}
                     <div className="bg-white rounded-xl shadow-lg">
-                        <h3 className="text-xl font-semibold text-gray-800 p-6 pb-0">Bill Summary</h3>
+                        <h3 className="text-xl font-semibold text-gray-800 p-6 pb-4">Bill Summary</h3>
                         {billItems.length > 0 ? (
-                            <div className="overflow-x-auto p-6">
+                            <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead className="text-left text-gray-500">
                                         <tr>
-                                            <th className="pb-4 font-medium">Item</th>
-                                            <th className="pb-4 font-medium text-center">Quantity</th>
-                                            <th className="pb-4 font-medium text-right">Subtotal</th>
-                                            <th className="pb-4"></th>
+                                            <th className="px-6 pb-4 font-medium">Item</th>
+                                            <th className="px-6 pb-4 font-medium text-center">Quantity</th>
+                                            <th className="px-6 pb-4 font-medium text-right">Subtotal</th>
+                                            <th className="px-6 pb-4"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {billItems.map((item) => (
-                                            <tr key={item.billItemId} className="border-t">
-                                                <td className="py-4 font-medium text-gray-800">
+                                            <tr key={item.billItemId} className="border-t border-gray-200">
+                                                <td className="px-6 py-4 font-medium text-gray-800">
                                                     {item.name}
                                                     <p className="text-xs text-gray-500 font-normal">@ ₹{parseFloat(item.rate).toFixed(2)}/{item.unit}</p>
                                                 </td>
-                                                <td className="py-4 w-40">
+                                                <td className="px-6 py-4 w-48">
                                                     <div className="flex items-center justify-center gap-2">
+                                                        <button onClick={() => handleUpdateQuantity(item.billItemId, item.weight - 1)} className="p-1.5 border rounded-full text-gray-500 hover:bg-gray-100"><MinusIcon /></button>
                                                         <input
                                                             type="number"
                                                             value={item.weight}
                                                             onChange={(e) => handleUpdateQuantity(item.billItemId, e.target.value)}
-                                                            className="w-20 text-center border border-gray-300 rounded-md p-1"
+                                                            className="w-20 text-center border border-gray-300 rounded-md p-2"
                                                         />
-                                                        <span className="text-gray-600">{item.unit}</span>
+                                                        <button onClick={() => handleUpdateQuantity(item.billItemId, item.weight + 1)} className="p-1.5 border rounded-full text-gray-500 hover:bg-gray-100"><PlusIcon /></button>
                                                     </div>
                                                 </td>
-                                                <td className="py-4 text-right font-semibold text-gray-800">₹{item.total.toFixed(2)}</td>
-                                                <td className="py-4 text-center pl-4">
-                                                    <button onClick={() => handleRemoveItem(item.billItemId)} className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50">
+                                                <td className="px-6 py-4 text-right font-semibold text-gray-800">₹{item.total.toFixed(2)}</td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <button onClick={() => handleRemoveItem(item.billItemId)} className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50">
                                                         <TrashIcon />
                                                     </button>
                                                 </td>
@@ -236,7 +253,6 @@ const AdminProcess = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Details & Actions */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white p-6 rounded-xl shadow-lg space-y-4">
                         <h2 className="text-xl font-semibold text-gray-800">Details</h2>
@@ -251,7 +267,7 @@ const AdminProcess = () => {
                             <p className="font-semibold text-gray-900">{vendor?.name}</p>
                         </div>
                     </div>
-                    <div className="bg-green-600 text-white p-6 rounded-xl shadow-lg text-center space-y-2">
+                    <div className="bg-green-600 text-white p-6 rounded-xl shadow-lg text-center space-y-2 sticky top-6">
                         <p className="text-lg font-bold opacity-80">GRAND TOTAL</p>
                         <p className="text-5xl font-extrabold tracking-tight">₹{totalBill.toFixed(2)}</p>
                     </div>
