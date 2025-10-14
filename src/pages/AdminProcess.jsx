@@ -158,7 +158,7 @@ const AdminProcess = () => {
                                 <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
                                     {searchResults.map(item => (
                                         <li key={item.id} onMouseDown={() => handleAddItem(item)} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
-                                            {item.name} (₹{item.rate}/{item.unit})
+                                            {item.name} (&#8377;{item.rate}/{item.unit})
                                         </li>
                                     ))}
                                 </ul>
@@ -190,8 +190,8 @@ const AdminProcess = () => {
                                                         <button onClick={() => handleUpdateQuantity(item.billItemId, item.weight + 1)}>+</button>
                                                     </div>
                                                 </td>
-                                                <td className="p-2 text-right">₹{item.rate.toFixed(2)}</td>
-                                                <td className="p-2 text-right">₹{item.total.toFixed(2)}</td>
+                                                <td className="p-2 text-right">&#8377;{item.rate.toFixed(2)}</td>
+                                                <td className="p-2 text-right">&#8377;{item.total.toFixed(2)}</td>
                                                 <td className="p-2 text-center">
                                                     <button onClick={() => handleRemoveItem(item.billItemId)}>X</button>
                                                 </td>
@@ -212,7 +212,7 @@ const AdminProcess = () => {
                     </div>
                     <div className="bg-green-100 p-4 rounded-xl shadow-md text-center">
                         <p className="text-xl font-bold text-green-800">Total Bill</p>
-                        <p className="text-3xl font-bold text-green-800">₹{totalBill.toFixed(2)}</p>
+                        <p className="text-3xl font-bold text-green-800">&#8377;{totalBill.toFixed(2)}</p>
                     </div>
                     <button onClick={handleSubmitBill} disabled={isSubmitting} className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">
                         {isSubmitting ? 'Saving...' : 'Confirm & Complete Order'}
