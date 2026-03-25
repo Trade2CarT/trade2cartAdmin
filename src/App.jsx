@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+
 // --- FIREBASE IMPORTS ---
 import { db, auth, storage } from './firebase';
 import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+
 
 // --- TOASTIFY IMPORTS ---
 import { ToastContainer, toast } from 'react-toastify';
@@ -19,6 +21,7 @@ const VendorOtp = lazy(() => import('./pages/VendorOtp'));
 const AdminProcess = lazy(() => import('./pages/AdminProcess'));
 const VendorOrders = lazy(() => import('./pages/VendorOrders'));
 
+
 // --- SVG ICONS ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
@@ -28,7 +31,7 @@ const CheckCircle = ({ className }) => <svg className={className} xmlns="http://
 const XCircle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>;
 const AlertTriangle = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>;
 const X = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
-const Loader = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>;
+const LoaderIcon = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>;
 const Printer = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" /></svg>;
 const SignOutIcon = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 const Ban = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></svg>;
@@ -149,45 +152,34 @@ const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, proce
           <tr>
             <th scope="col" className="px-6 py-3">Name</th>
             <th scope="col" className="px-6 py-3">Phone</th>
+            <th scope="col" className="px-6 py-3">Email</th>
             <th scope="col" className="px-6 py-3">Status</th>
             <th scope="col" className="px-6 py-3 text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {users.map(user => {
-            // Correct field mapping based on your database structure
-            // Prioritizes phoneNumber as seen in your data
-            const displayPhone = user.phoneNumber || user.phone || user.mobile || 'N/A';
-            const displayName = user.name || user.Name || 'N/A';
-            const displayStatus = user.status || user.Status || 'Active';
-            const isBlocked = displayStatus.toLowerCase() === 'blocked';
-
-            // FILTER: Hide rows that don't have a valid phone number. 
-            // This removes the "N/A N/A Active Block" ghost records.
-            if (displayPhone === 'N/A') return null;
-
-            return (
-              <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{displayName}</td>
-                <td className="px-6 py-4">{displayPhone}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                    {displayStatus}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <div className="flex justify-center items-center space-x-2">
-                    <button onClick={() => toggleUserStatus(user)} disabled={processingId === user.id} className={`flex items-center justify-center w-20 px-3 py-2 text-xs font-medium text-white rounded-md disabled:bg-gray-400 ${isBlocked ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'}`}>
-                      {processingId === user.id ? <Loader className="w-4 h-4 animate-spin" /> : (isBlocked ? 'Unblock' : 'Block')}
-                    </button>
-                    <button onClick={() => openDeleteModal(user)} disabled={processingId === user.id} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-400">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
+          {users.map(user => (
+            <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
+              <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{user.name || 'N/A'}</td>
+              <td className="px-6 py-4">{user.phone}</td>
+              <td className="px-6 py-4">{user.email || 'N/A'}</td>
+              <td className="px-6 py-4">
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.Status?.toLowerCase() === 'blocked' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                  {user.Status || 'Active'}
+                </span>
+              </td>
+              <td className="px-6 py-4 text-center">
+                <div className="flex justify-center items-center space-x-2">
+                  <button onClick={() => toggleUserStatus(user)} disabled={processingId === user.id} className={`flex items-center justify-center w-20 px-3 py-2 text-xs font-medium text-white rounded-md disabled:bg-gray-400 ${user.Status?.toLowerCase() === 'blocked' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'}`}>
+                    {processingId === user.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : (user.Status?.toLowerCase() === 'blocked' ? 'Unblock' : 'Block')}
+                  </button>
+                  <button onClick={() => openDeleteModal(user)} disabled={processingId === user.id} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-400">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -219,11 +211,11 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
         </div>
         <div className="p-4 bg-gray-100 flex justify-end items-center space-x-3">
           {vendor.status === 'pending' && <>
-            <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 mr-2" /> Reject</>}</button>
-            <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Approve</>}</button>
+            <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 mr-2" /> Reject</>}</button>
+            <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Approve</>}</button>
           </>}
-          {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><Ban className="w-4 h-4 mr-2" /> Block</>}</button>}
-          {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Unblock</>}</button>}
+          {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><Ban className="w-4 h-4 mr-2" /> Block</>}</button>}
+          {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Unblock</>}</button>}
           <button onClick={() => onDelete(vendor)} disabled={processingId === vendor.id} className="p-2.5 text-red-600 bg-red-100 rounded-lg hover:bg-red-200 disabled:bg-gray-400"><Trash2 className="w-4 h-4" /></button>
         </div>
       </div>
@@ -307,7 +299,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
                       {otherVendors.length > 0 && <optgroup label="Other Vendors">{otherVendors.map(v => (<option key={v.id} value={v.id}>{v.name} - {v.location || 'N/A'}</option>))}</optgroup>}
                     </select>
                   </td>
-                  <td className="px-6 py-4"><button onClick={() => confirmGroupAssignment(mobile)} disabled={!assignments[mobile] || processingId === mobile} className="flex items-center justify-center w-full sm:w-28 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">{processingId === mobile ? <Loader className="w-5 h-5 animate-spin" /> : 'Confirm'}</button></td>
+                  <td className="px-6 py-4"><button onClick={() => confirmGroupAssignment(mobile)} disabled={!assignments[mobile] || processingId === mobile} className="flex items-center justify-center w-full sm:w-28 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">{processingId === mobile ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Confirm'}</button></td>
                 </tr>
               );
             })}
@@ -319,14 +311,12 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
+// --- UPDATED ITEM MANAGEMENT WITH PRICE RANGE ---
 const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-
   const [newLocation, setNewLocation] = useState('');
   const [sourceLocation, setSourceLocation] = useState('');
-  const [locationInput, setLocationInput] = useState('');
 
   const uniqueCategories = useMemo(() => [...new Set(items.map(item => item.category))], [items]);
   const uniqueUnits = useMemo(() => [...new Set(items.map(item => item.unit))], [items]);
@@ -358,28 +348,6 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
     finally { setProcessingId(null); }
   };
 
-  // --- Multi-select Location Handlers ---
-  const addLocation = (loc) => {
-    if (loc && !newItem.locations.includes(loc)) {
-      setNewItem(prev => ({ ...prev, locations: [...prev.locations, loc] }));
-    }
-    setLocationInput('');
-    setShowLocationSuggestions(false);
-  };
-
-  const removeLocation = (loc) => {
-    setNewItem(prev => ({ ...prev, locations: prev.locations.filter(l => l !== loc) }));
-  };
-
-  const handleLocationKeyDown = (e) => {
-    if (e.key === 'Enter' && locationInput.trim()) {
-      e.preventDefault();
-      addLocation(locationInput.trim());
-    } else if (e.key === 'Backspace' && !locationInput && newItem.locations.length > 0) {
-      removeLocation(newItem.locations[newItem.locations.length - 1]);
-    }
-  };
-
   return (
     <div>
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Item Management</h2>
@@ -391,83 +359,47 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
           <input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="New Location Name" className="w-full p-2 border border-gray-300 rounded-md" />
-          <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400">{processingId === 'copy-location' ? <Loader className="w-5 h-5 animate-spin" /> : 'Copy Items'}</button>
+          <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400">{processingId === 'copy-location' ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Copy Items'}</button>
         </div>
       </div>
+
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">{isEditing ? 'Edit Item' : 'Create New Item'}</h3>
-        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
-
+        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
           <input name="name" value={newItem.name} placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <input name="rate" value={newItem.rate} placeholder="Rate" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
+          <input name="minRate" value={newItem.minRate} placeholder="Min Rate (₹)" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
+          <input name="maxRate" value={newItem.maxRate} placeholder="Max Rate (₹)" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
 
-          {/* Unit Input */}
           <div className="relative">
-            <input name="unit" value={newItem.unit} placeholder="Unit (e.g., kg)" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 200)} className="w-full p-2 border border-gray-300 rounded-md" required />
+            <input name="unit" value={newItem.unit} placeholder="Unit (e.g., kg, item)" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 150)} className="w-full p-2 border border-gray-300 rounded-md" required />
             {showUnitSuggestions && uniqueUnits.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueUnits.map(unit => (<li key={unit} onMouseDown={() => { setNewItem(prev => ({ ...prev, unit })); setShowUnitSuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{unit}</li>))}</ul>)}
           </div>
-
-          {/* Category Input */}
           <div className="relative">
-            <input name="category" value={newItem.category} placeholder="Category (Type to add new)" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)} className="w-full p-2 border border-gray-300 rounded-md" required />
+            <input name="category" value={newItem.category} placeholder="Category" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-2 border border-gray-300 rounded-md" required />
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
-
-          {/* Multi-Select Location Input */}
-          <div className="relative">
-            <div className="flex flex-wrap gap-1 mb-1">
-              {newItem.locations && newItem.locations.map(loc => (
-                <span key={loc} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center">
-                  {loc} <button type="button" onClick={() => removeLocation(loc)} className="ml-1 text-blue-600 hover:text-blue-900"><X className="w-3 h-3" /></button>
-                </span>
-              ))}
-            </div>
-            <input
-              value={locationInput}
-              onChange={(e) => { setLocationInput(e.target.value); setShowLocationSuggestions(true); }}
-              onKeyDown={handleLocationKeyDown}
-              onFocus={() => setShowLocationSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
-              placeholder={newItem.locations && newItem.locations.length > 0 ? "Add another location..." : "Location (Type & Enter)"}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            />
-            {showLocationSuggestions && (
-              <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
-                {uniqueLocations
-                  .filter(l => l.toLowerCase().includes(locationInput.toLowerCase()))
-                  .map(loc => (
-                    <li key={loc} onMouseDown={() => addLocation(loc)} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center">
-                      {loc}
-                      {newItem.locations.includes(loc) && <CheckCircle className="w-4 h-4 text-green-500" />}
-                    </li>
-                  ))}
-                {locationInput && !uniqueLocations.includes(locationInput) && (
-                  <li onMouseDown={() => addLocation(locationInput)} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-medium">
-                    Add "{locationInput}"
-                  </li>
-                )}
-              </ul>
-            )}
-          </div>
-
+          <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
           <div>
-            <input type="file" onChange={handleImageChange} className="w-full p-1.5 border border-gray-300 rounded-md" />
+            <input type="file" onChange={handleImageChange} className="w-full p-1.5 border border-gray-300 rounded-md text-xs" />
             {imagePreview && <img src={imagePreview} alt="Item Preview" className="mt-2 h-16 w-16 object-cover" />}
           </div>
-          <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-3 xl:col-span-1">
-            <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <Loader className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
+          <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-4 xl:col-span-1">
+            <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <LoaderIcon className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
             {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
           </div>
         </form>
       </div>
+
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate Range (₹)</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
           <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50">
             <td className="px-6 py-4">
               {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded-md" />}
             </td>
-            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td><td className="px-6 py-4">₹{item.rate}</td><td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
+            <td className="px-6 py-4 font-semibold text-gray-800">₹{item.minRate || item.rate || 0} - ₹{item.maxRate || item.rate || 0}</td>
+            <td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
         </table>
       </div>
     </div>
@@ -512,12 +444,12 @@ const BillModal = ({ bill, onClose }) => {
                 <tr key={index} className="border-b">
                   <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
                   <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">₹{parseFloat(item.total).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">₹{parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
+            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
           </table>
         </div>
         <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
@@ -547,7 +479,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
                   <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
                   <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">₹{parseFloat(bill.totalBill).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
                   <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
                 </tr>
               );
@@ -579,7 +511,7 @@ const TransferOrderModal = ({ isOpen, onClose, onConfirm, assignment, vendors, p
         <div className="mt-6 flex justify-end space-x-3">
           <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
           <button type="button" onClick={() => onConfirm(assignment.id, newVendorId)} disabled={!newVendorId || processingId === assignment.id} className="flex items-center justify-center w-32 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">
-            {processingId === assignment.id ? <Loader className="w-5 h-5 animate-spin" /> : 'Confirm Transfer'}
+            {processingId === assignment.id ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Confirm Transfer'}
           </button>
         </div>
       </div>
@@ -636,7 +568,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
@@ -674,10 +606,9 @@ const AdminPage = ({ handleSignOut }) => {
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
 
-  // Component State
+  // --- UPDATED NEW ITEM STATE FOR RANGE ---
   const [assignments, setAssignments] = useState({});
-  // Updated newItem state to support multiple locations array
-  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', locations: [] });
+  const [newItem, setNewItem] = useState({ name: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -743,6 +674,7 @@ const AdminPage = ({ handleSignOut }) => {
         assignmentsSnapshot.forEach(assignSnap => {
           const assignment = { id: assignSnap.key, ...assignSnap.val() };
           affectedAssignmentsCount++;
+
           if (assignment.status === 'assigned' && assignment.entryIds) {
             assignment.entryIds.forEach(entryId => {
               updates[`/wasteEntries/${entryId}/isAssigned`] = false;
@@ -768,7 +700,6 @@ const AdminPage = ({ handleSignOut }) => {
 
     } catch (error) {
       toast.error('An error occurred during the deletion process.');
-      console.error("Vendor deletion error:", error);
     } finally {
       setVendorToDelete(null);
       setProcessingId(null);
@@ -784,6 +715,7 @@ const AdminPage = ({ handleSignOut }) => {
 
     try {
       updates[`/users/${userId}`] = null;
+
       const wasteQuery = query(ref(db, 'wasteEntries'), orderByChild('mobile'), equalTo(userMobile));
       const wasteSnapshot = await get(wasteQuery);
       if (wasteSnapshot.exists()) {
@@ -791,6 +723,7 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/wasteEntries/${snap.key}`] = null;
         });
       }
+
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('userId'), equalTo(userId));
       const assignmentsSnapshot = await get(assignmentsQuery);
       if (assignmentsSnapshot.exists()) {
@@ -798,6 +731,7 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/assignments/${snap.key}`] = null;
         });
       }
+
       const billsQuery = query(ref(db, 'bills'), orderByChild('userId'), equalTo(userId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -810,14 +744,13 @@ const AdminPage = ({ handleSignOut }) => {
       toast.success(`User '${userToDelete.name}' and all their related data have been permanently deleted.`);
     } catch (error) {
       toast.error('An error occurred during user deletion.');
-      console.error("User deletion error:", error);
     } finally {
       setUserToDelete(null);
       setProcessingId(null);
     }
   };
 
-  // --- CRUD Handlers ---
+
   const updateVendorStatus = async (id, status) => {
     setProcessingId(id);
     try {
@@ -831,8 +764,7 @@ const AdminPage = ({ handleSignOut }) => {
 
   const toggleUserStatus = async (user) => {
     setProcessingId(user.id);
-    const currentStatus = user.Status || user.status || 'Active';
-    const newStatus = currentStatus.toLowerCase() === 'blocked' ? 'Active' : 'Blocked';
+    const newStatus = user.Status?.toLowerCase() === 'blocked' ? 'Active' : 'Blocked';
     try {
       await update(ref(db, `users/${user.id}`), { Status: newStatus });
       toast.success(`User has been ${newStatus.toLowerCase()}.`);
@@ -909,10 +841,12 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
   const handleItemInputChange = (e) => setNewItem(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+  // Reset with new range variables
   const cancelEdit = () => {
     setIsEditing(false);
     setCurrentItemId(null);
-    setNewItem({ name: '', rate: '', unit: '', category: '', locations: [] });
+    setNewItem({ name: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
     setItemImage(null);
     setImagePreview(null);
   };
@@ -920,8 +854,8 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.rate || !newItem.unit || !newItem.category || (newItem.locations && newItem.locations.length === 0)) {
-      return toast.error('Please fill out all fields and select at least one location.');
+    if (Object.values(newItem).some(val => !val)) {
+      return toast.error('Please fill out all fields.');
     }
     setProcessingId(isEditing ? currentItemId : 'add-item');
 
@@ -934,31 +868,29 @@ const AdminPage = ({ handleSignOut }) => {
         imageUrl = await getDownloadURL(imageRef);
       }
 
-      const baseItemData = {
+      // --- CRITICAL BACKWARDS COMPATIBILITY FIX ---
+      // We save both `minRate` and `maxRate`, but we ALSO save `rate: minRate` 
+      // so the vendor app doesn't break when looking for a starting price.
+      const itemData = {
         name: newItem.name,
-        rate: newItem.rate,
+        minRate: parseFloat(newItem.minRate),
+        maxRate: parseFloat(newItem.maxRate),
+        rate: parseFloat(newItem.minRate),
         unit: newItem.unit,
         category: newItem.category,
+        location: newItem.location,
         imageUrl: imageUrl
       };
 
       if (isEditing) {
-        // Edit mode: We typically edit a single item which has a single location
-        // If user selected multiple in edit mode, we will just use the first one or the logic is ambiguous.
-        // For safety in this code, we update the current item with the *first* location in the list.
-        await set(ref(db, `items/${currentItemId}`), { ...baseItemData, location: newItem.locations[0] });
+        await set(ref(db, `items/${currentItemId}`), itemData);
         toast.success('Item updated successfully.');
       } else {
-        // Create mode: Create an item for EACH selected location
-        const promises = newItem.locations.map(loc => {
-          return set(push(ref(db, 'items')), { ...baseItemData, location: loc });
-        });
-        await Promise.all(promises);
-        toast.success(`Item created for ${newItem.locations.length} location(s) successfully.`);
+        await set(push(ref(db, 'items')), itemData);
+        toast.success('Item created successfully.');
       }
       cancelEdit();
     } catch (error) {
-      console.error("Item save error:", error);
       toast.error('Failed to save item.');
     } finally {
       setProcessingId(null);
@@ -971,10 +903,11 @@ const AdminPage = ({ handleSignOut }) => {
     setCurrentItemId(item.id);
     setNewItem({
       name: item.name,
-      rate: item.rate,
+      minRate: item.minRate || item.rate || '',
+      maxRate: item.maxRate || item.rate || '',
       unit: item.unit,
       category: item.category,
-      locations: [item.location] // Populate with the existing location
+      location: item.location
     });
     setImagePreview(item.imageUrl || null);
     setItemImage(null);
@@ -990,7 +923,6 @@ const AdminPage = ({ handleSignOut }) => {
       try {
         await deleteObject(imageRef);
       } catch (error) {
-        console.error("Could not delete item image from storage:", error);
         toast.warn("Could not remove the item's image from storage, but the item data will be deleted.");
       }
     }
@@ -1006,9 +938,8 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
 
-  // --- Render Logic ---
   const renderContent = () => {
-    if (loading) return <div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>;
+    if (loading) return <div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-blue-500" /></div>;
 
     const contentMap = {
       dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} setActiveTab={setActiveTab} />,
@@ -1042,7 +973,7 @@ const AdminPage = ({ handleSignOut }) => {
           <div className="mt-auto pt-4"><button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200"><SignOutIcon className="w-5 h-5" /> Sign Out</button></div>
         </aside>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>}>
+          <Suspense fallback={<div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-blue-500" /></div>}>
             {activeTab === 'vendor-billing' ? <VendorBilling /> : renderContent()}
           </Suspense>
         </main>
@@ -1083,13 +1014,13 @@ const App = () => {
   };
 
   if (loading) {
-    return (<div className="flex items-center justify-center min-h-screen bg-gray-100"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>);
+    return (<div className="flex items-center justify-center min-h-screen bg-gray-100"><LoaderIcon className="w-16 h-16 animate-spin text-blue-500" /></div>);
   }
 
   return (
     <Router>
       <>
-        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-100"><Loader className="w-16 h-16 animate-spin text-blue-500" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-100"><LoaderIcon className="w-16 h-16 animate-spin text-blue-500" /></div>}>
           <Routes>
             <Route path="/login" element={user ? <Navigate to="/" /> : <AdminLogin />} />
             <Route path="/" element={user ? <AdminPage handleSignOut={handleSignOut} /> : <Navigate to="/login" />}>
@@ -1106,4 +1037,4 @@ const App = () => {
   );
 };
 
-export default App; 
+export default App;
