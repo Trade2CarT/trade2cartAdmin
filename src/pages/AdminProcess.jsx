@@ -12,8 +12,6 @@ const Loader = () => (
 );
 const TrashIcon = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>;
 const PlusIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>;
-const MinusIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>;
-
 
 const AdminProcess = () => {
     const navigate = useNavigate();
@@ -25,26 +23,28 @@ const AdminProcess = () => {
     const [masterItems, setMasterItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Aligned state with Vendor app
     const [billItems, setBillItems] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-    // --- BUG FIX: Ref to handle clicks outside the search component ---
+    // Custom Item Modal State
+    const [showCustomModal, setShowCustomModal] = useState(false);
+    const [customName, setCustomName] = useState('');
+    const [customRate, setCustomRate] = useState('');
+
     const searchContainerRef = useRef(null);
 
     useEffect(() => {
-        // This effect closes the dropdown if a click happens outside of the search container
         const handleClickOutside = (event) => {
             if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
                 setIsSearchFocused(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
 
     useEffect(() => {
         const fetchData = async () => {
@@ -70,7 +70,6 @@ const AdminProcess = () => {
 
             } catch (error) {
                 toast.error("Failed to load critical order data.");
-                console.error("Data fetch error:", error);
             } finally {
                 setLoading(false);
             }
@@ -99,27 +98,69 @@ const AdminProcess = () => {
         return itemsInLocation;
     }, [searchTerm, masterItems, vendor, isSearchFocused]);
 
+    // Aligned handleAddItem with Vendor app (rateInput, weightInput)
     const handleAddItem = (item) => {
         const existingItem = billItems.find(billItem => billItem.id === item.id);
         if (existingItem) {
-            handleUpdateQuantity(existingItem.billItemId, existingItem.weight + 1);
+            toast.info(`${item.name} is already added. You can change weight below.`);
         } else {
-            setBillItems(prev => [...prev, { ...item, billItemId: `${item.id}-${Date.now()}`, weight: 1, total: parseFloat(item.rate) }]);
+            const rateVal = parseFloat(item.rate) || 0;
+            const newBillItem = {
+                ...item,
+                billItemId: `${item.id}-${Date.now()}`,
+                rateInput: item.rate.toString(),
+                rate: rateVal,
+                weightInput: "1",
+                weight: 1,
+                total: rateVal * 1,
+            };
+            setBillItems(prev => [...prev, newBillItem]);
         }
         setSearchTerm('');
         setIsSearchFocused(false);
     };
 
-    const handleUpdateQuantity = (billItemId, newQuantity) => {
-        const quantity = parseFloat(newQuantity);
-        if (isNaN(quantity) || quantity <= 0) {
-            // If input is cleared or invalid, remove the item
-            setBillItems(prevItems => prevItems.filter(item => item.billItemId !== billItemId));
-        } else {
-            setBillItems(prevItems => prevItems.map(item =>
-                item.billItemId === billItemId ? { ...item, weight: quantity, total: quantity * parseFloat(item.rate) } : item
-            ));
-        }
+    // Aligned Custom Item Logic
+    const handleAddCustom = () => {
+        if (!customName.trim() || !customRate.trim()) return toast.error("Please enter a name and price.");
+        const rateVal = parseFloat(customRate) || 0;
+        const newItem = {
+            id: `custom-${Date.now()}`,
+            billItemId: `custom-${Date.now()}`,
+            name: customName,
+            rateInput: customRate,
+            rate: rateVal,
+            weightInput: "1",
+            weight: 1,
+            unit: 'kg',
+            total: rateVal * 1,
+        };
+        setBillItems(prev => [...prev, newItem]);
+        setShowCustomModal(false);
+        setCustomName('');
+        setCustomRate('');
+    };
+
+    // Aligned editable Rate logic
+    const handleUpdateRate = (billItemId, newRateInput) => {
+        setBillItems(prev => prev.map(item => {
+            if (item.billItemId === billItemId) {
+                const parsedRate = parseFloat(newRateInput) || 0;
+                return { ...item, rateInput: newRateInput, rate: parsedRate, total: parsedRate * item.weight };
+            }
+            return item;
+        }));
+    };
+
+    // Aligned editable Weight logic
+    const handleUpdateWeight = (billItemId, newWeightInput) => {
+        setBillItems(prev => prev.map(item => {
+            if (item.billItemId === billItemId) {
+                const parsedWeight = parseFloat(newWeightInput) || 0;
+                return { ...item, weightInput: newWeightInput, weight: parsedWeight, total: item.rate * parsedWeight };
+            }
+            return item;
+        }));
     };
 
     const handleRemoveItem = (billItemId) => {
@@ -136,6 +177,7 @@ const AdminProcess = () => {
         }
         setIsSubmitting(true);
         try {
+            // Data structure explicitly matches the Vendor App
             const billData = {
                 assignmentID: assignmentId,
                 vendorId: assignment.vendorId,
@@ -158,28 +200,30 @@ const AdminProcess = () => {
 
             await update(ref(db), updates);
             toast.success("Bill saved and order completed successfully!");
-            navigate('/billing');
+            navigate('/vendor-billing');
         } catch (error) {
             toast.error("An error occurred while submitting the bill.");
-            console.error("Bill submission error:", error);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    if (loading) {
-        return <Loader />;
-    }
+    if (loading) return <Loader />;
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 relative">
             <button onClick={() => navigate(-1)} className="text-sm text-blue-600 hover:underline mb-6">&larr; Back to Orders</button>
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">Create Bill</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">Create Bill (Admin View)</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     <div className="bg-white p-6 rounded-xl shadow-lg" ref={searchContainerRef}>
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Items to Bill</h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-800">Add Items to Bill</h2>
+                            <button onClick={() => setShowCustomModal(true)} className="flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-100 transition">
+                                <PlusIcon /> Custom Item
+                            </button>
+                        </div>
                         <div className="relative">
                             <input
                                 type="text"
@@ -209,34 +253,40 @@ const AdminProcess = () => {
                         {billItems.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
-                                    <thead className="text-left text-gray-500">
+                                    <thead className="text-left text-gray-500 border-b border-gray-100">
                                         <tr>
-                                            <th className="px-6 pb-4 font-medium">Item</th>
-                                            <th className="px-6 pb-4 font-medium text-center">Quantity</th>
-                                            <th className="px-6 pb-4 font-medium text-right">Subtotal</th>
+                                            <th className="px-6 pb-4 font-medium uppercase text-xs tracking-wider">Item</th>
+                                            <th className="px-6 pb-4 font-medium text-center uppercase text-xs tracking-wider">Rate (₹)</th>
+                                            <th className="px-6 pb-4 font-medium text-center uppercase text-xs tracking-wider">Qty/Wt</th>
+                                            <th className="px-6 pb-4 font-medium text-right uppercase text-xs tracking-wider">Subtotal</th>
                                             <th className="px-6 pb-4"></th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-gray-100">
                                         {billItems.map((item) => (
-                                            <tr key={item.billItemId} className="border-t border-gray-200">
-                                                <td className="px-6 py-4 font-medium text-gray-800">
+                                            <tr key={item.billItemId} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 font-semibold text-gray-800">
                                                     {item.name}
-                                                    <p className="text-xs text-gray-500 font-normal">@ ₹{parseFloat(item.rate).toFixed(2)}/{item.unit}</p>
                                                 </td>
-                                                <td className="px-6 py-4 w-48">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <button onClick={() => handleUpdateQuantity(item.billItemId, item.weight - 1)} className="p-1.5 border rounded-full text-gray-500 hover:bg-gray-100"><MinusIcon /></button>
-                                                        <input
-                                                            type="number"
-                                                            value={item.weight}
-                                                            onChange={(e) => handleUpdateQuantity(item.billItemId, e.target.value)}
-                                                            className="w-20 text-center border border-gray-300 rounded-md p-2"
-                                                        />
-                                                        <button onClick={() => handleUpdateQuantity(item.billItemId, item.weight + 1)} className="p-1.5 border rounded-full text-gray-500 hover:bg-gray-100"><PlusIcon /></button>
-                                                    </div>
+                                                <td className="px-6 py-4 w-32">
+                                                    <input
+                                                        type="number"
+                                                        value={item.rateInput}
+                                                        onChange={(e) => handleUpdateRate(item.billItemId, e.target.value)}
+                                                        className="w-full text-center border border-gray-300 rounded-md p-2 font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500"
+                                                    />
                                                 </td>
-                                                <td className="px-6 py-4 text-right font-semibold text-gray-800">₹{item.total.toFixed(2)}</td>
+                                                <td className="px-6 py-4 w-32">
+                                                    <input
+                                                        type="number"
+                                                        value={item.weightInput}
+                                                        onChange={(e) => handleUpdateWeight(item.billItemId, e.target.value)}
+                                                        className="w-full text-center border border-gray-300 rounded-md p-2 font-semibold text-gray-800 focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-bold text-gray-900 text-lg">
+                                                    ₹{item.total.toFixed(2)}
+                                                </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <button onClick={() => handleRemoveItem(item.billItemId)} className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50">
                                                         <TrashIcon />
@@ -268,7 +318,7 @@ const AdminProcess = () => {
                         </div>
                     </div>
                     <div className="bg-green-600 text-white p-6 rounded-xl shadow-lg text-center space-y-2 sticky top-6">
-                        <p className="text-lg font-bold opacity-80">GRAND TOTAL</p>
+                        <p className="text-lg font-bold opacity-80 uppercase tracking-widest">Grand Total</p>
                         <p className="text-5xl font-extrabold tracking-tight">₹{totalBill.toFixed(2)}</p>
                     </div>
                     <button onClick={handleSubmitBill} disabled={isSubmitting || billItems.length === 0} className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all text-lg disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg hover:shadow-xl">
@@ -276,6 +326,35 @@ const AdminProcess = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Admin Custom Item Modal */}
+            {showCustomModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
+                        <h3 className="text-2xl font-bold text-gray-900 mb-6">Add Custom Scrap</h3>
+
+                        <div className="space-y-4 mb-8">
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Item Name</label>
+                                <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="e.g. Copper Wire" className="w-full mt-1 p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Rate / Price (₹)</label>
+                                <input type="number" value={customRate} onChange={(e) => setCustomRate(e.target.value)} placeholder="e.g. 50" className="w-full mt-1 p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowCustomModal(false)} className="flex-1 py-3 bg-gray-100 text-gray-800 font-bold rounded-lg hover:bg-gray-200">
+                                Cancel
+                            </button>
+                            <button onClick={handleAddCustom} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700">
+                                Add Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

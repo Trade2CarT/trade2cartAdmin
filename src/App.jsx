@@ -1,13 +1,11 @@
 import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-
 // --- FIREBASE IMPORTS ---
-import { db, auth, storage } from './firebase'; // Make sure to export storage from firebase.js
+import { db, auth, storage } from './firebase';
 import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-
 
 // --- TOASTIFY IMPORTS ---
 import { ToastContainer, toast } from 'react-toastify';
@@ -21,8 +19,7 @@ const VendorOtp = lazy(() => import('./pages/VendorOtp'));
 const AdminProcess = lazy(() => import('./pages/AdminProcess'));
 const VendorOrders = lazy(() => import('./pages/VendorOrders'));
 
-
-// --- SVG ICONS (Corrected viewBox) ---
+// --- SVG ICONS ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 const Truck = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" /><circle cx="7.5" cy="18.5" r="2.5" /><circle cx="17.5" cy="18.5" r="2.5" /></svg>;
 const Package = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 9.4a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /><path d="M12 15H3l-1-5L2 2h20l-1 8h-9" /><path d="m9.5 9.4 1.35 1.35a.5.5 0 0 0 .7 0L13 9.4" /></svg>;
@@ -116,12 +113,10 @@ const TabButton = ({ id, label, activeTab, setActiveTab }) => (
 // --- Dashboard Content Components ---
 const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
   const stats = useMemo(() => {
-    // For Pending Assignments: Count unique customers with unassigned entries
     const unassignedEntries = wasteEntries.filter(w => !w.isAssigned);
     const pendingCustomers = new Set(unassignedEntries.map(w => w.mobile));
     const pendingAssignments = pendingCustomers.size;
 
-    // For Today's Orders: Count unique customers who placed an order today
     const todaysEntries = wasteEntries.filter(w => isToday(w.timestamp));
     const todayCustomers = new Set(todaysEntries.map(w => w.mobile));
     const todaysOrders = todayCustomers.size;
@@ -154,34 +149,45 @@ const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, proce
           <tr>
             <th scope="col" className="px-6 py-3">Name</th>
             <th scope="col" className="px-6 py-3">Phone</th>
-            <th scope="col" className="px-6 py-3">Email</th>
             <th scope="col" className="px-6 py-3">Status</th>
             <th scope="col" className="px-6 py-3 text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {users.map(user => (
-            <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
-              <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{user.name || 'N/A'}</td>
-              <td className="px-6 py-4">{user.phone}</td>
-              <td className="px-6 py-4">{user.email || 'N/A'}</td>
-              <td className="px-6 py-4">
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.Status?.toLowerCase() === 'blocked' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                  {user.Status || 'Active'}
-                </span>
-              </td>
-              <td className="px-6 py-4 text-center">
-                <div className="flex justify-center items-center space-x-2">
-                  <button onClick={() => toggleUserStatus(user)} disabled={processingId === user.id} className={`flex items-center justify-center w-20 px-3 py-2 text-xs font-medium text-white rounded-md disabled:bg-gray-400 ${user.Status?.toLowerCase() === 'blocked' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'}`}>
-                    {processingId === user.id ? <Loader className="w-4 h-4 animate-spin" /> : (user.Status?.toLowerCase() === 'blocked' ? 'Unblock' : 'Block')}
-                  </button>
-                  <button onClick={() => openDeleteModal(user)} disabled={processingId === user.id} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {users.map(user => {
+            // Correct field mapping based on your database structure
+            // Prioritizes phoneNumber as seen in your data
+            const displayPhone = user.phoneNumber || user.phone || user.mobile || 'N/A';
+            const displayName = user.name || user.Name || 'N/A';
+            const displayStatus = user.status || user.Status || 'Active';
+            const isBlocked = displayStatus.toLowerCase() === 'blocked';
+
+            // FILTER: Hide rows that don't have a valid phone number. 
+            // This removes the "N/A N/A Active Block" ghost records.
+            if (displayPhone === 'N/A') return null;
+
+            return (
+              <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
+                <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{displayName}</td>
+                <td className="px-6 py-4">{displayPhone}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                    {displayStatus}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <div className="flex justify-center items-center space-x-2">
+                    <button onClick={() => toggleUserStatus(user)} disabled={processingId === user.id} className={`flex items-center justify-center w-20 px-3 py-2 text-xs font-medium text-white rounded-md disabled:bg-gray-400 ${isBlocked ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'}`}>
+                      {processingId === user.id ? <Loader className="w-4 h-4 animate-spin" /> : (isBlocked ? 'Unblock' : 'Block')}
+                    </button>
+                    <button onClick={() => openDeleteModal(user)} disabled={processingId === user.id} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-400">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -316,8 +322,12 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
 const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+
   const [newLocation, setNewLocation] = useState('');
   const [sourceLocation, setSourceLocation] = useState('');
+  const [locationInput, setLocationInput] = useState('');
+
   const uniqueCategories = useMemo(() => [...new Set(items.map(item => item.category))], [items]);
   const uniqueUnits = useMemo(() => [...new Set(items.map(item => item.unit))], [items]);
   const uniqueLocations = useMemo(() => [...new Set(items.map(item => item.location))].filter(Boolean), [items]);
@@ -348,6 +358,28 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
     finally { setProcessingId(null); }
   };
 
+  // --- Multi-select Location Handlers ---
+  const addLocation = (loc) => {
+    if (loc && !newItem.locations.includes(loc)) {
+      setNewItem(prev => ({ ...prev, locations: [...prev.locations, loc] }));
+    }
+    setLocationInput('');
+    setShowLocationSuggestions(false);
+  };
+
+  const removeLocation = (loc) => {
+    setNewItem(prev => ({ ...prev, locations: prev.locations.filter(l => l !== loc) }));
+  };
+
+  const handleLocationKeyDown = (e) => {
+    if (e.key === 'Enter' && locationInput.trim()) {
+      e.preventDefault();
+      addLocation(locationInput.trim());
+    } else if (e.key === 'Backspace' && !locationInput && newItem.locations.length > 0) {
+      removeLocation(newItem.locations[newItem.locations.length - 1]);
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Item Management</h2>
@@ -365,17 +397,59 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">{isEditing ? 'Edit Item' : 'Create New Item'}</h3>
         <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+
           <input name="name" value={newItem.name} placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
           <input name="rate" value={newItem.rate} placeholder="Rate" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
+
+          {/* Unit Input */}
           <div className="relative">
-            <input name="unit" value={newItem.unit} placeholder="Unit (e.g., kg, item)" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 150)} className="w-full p-2 border border-gray-300 rounded-md" required />
+            <input name="unit" value={newItem.unit} placeholder="Unit (e.g., kg)" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 200)} className="w-full p-2 border border-gray-300 rounded-md" required />
             {showUnitSuggestions && uniqueUnits.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueUnits.map(unit => (<li key={unit} onMouseDown={() => { setNewItem(prev => ({ ...prev, unit })); setShowUnitSuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{unit}</li>))}</ul>)}
           </div>
+
+          {/* Category Input */}
           <div className="relative">
-            <input name="category" value={newItem.category} placeholder="Category" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-2 border border-gray-300 rounded-md" required />
+            <input name="category" value={newItem.category} placeholder="Category (Type to add new)" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)} className="w-full p-2 border border-gray-300 rounded-md" required />
             {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
           </div>
-          <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
+
+          {/* Multi-Select Location Input */}
+          <div className="relative">
+            <div className="flex flex-wrap gap-1 mb-1">
+              {newItem.locations && newItem.locations.map(loc => (
+                <span key={loc} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full flex items-center">
+                  {loc} <button type="button" onClick={() => removeLocation(loc)} className="ml-1 text-blue-600 hover:text-blue-900"><X className="w-3 h-3" /></button>
+                </span>
+              ))}
+            </div>
+            <input
+              value={locationInput}
+              onChange={(e) => { setLocationInput(e.target.value); setShowLocationSuggestions(true); }}
+              onKeyDown={handleLocationKeyDown}
+              onFocus={() => setShowLocationSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
+              placeholder={newItem.locations && newItem.locations.length > 0 ? "Add another location..." : "Location (Type & Enter)"}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            />
+            {showLocationSuggestions && (
+              <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
+                {uniqueLocations
+                  .filter(l => l.toLowerCase().includes(locationInput.toLowerCase()))
+                  .map(loc => (
+                    <li key={loc} onMouseDown={() => addLocation(loc)} className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center">
+                      {loc}
+                      {newItem.locations.includes(loc) && <CheckCircle className="w-4 h-4 text-green-500" />}
+                    </li>
+                  ))}
+                {locationInput && !uniqueLocations.includes(locationInput) && (
+                  <li onMouseDown={() => addLocation(locationInput)} className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-blue-600 font-medium">
+                    Add "{locationInput}"
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+
           <div>
             <input type="file" onChange={handleImageChange} className="w-full p-1.5 border border-gray-300 rounded-md" />
             {imagePreview && <img src={imagePreview} alt="Item Preview" className="mt-2 h-16 w-16 object-cover" />}
@@ -602,7 +676,8 @@ const AdminPage = ({ handleSignOut }) => {
 
   // Component State
   const [assignments, setAssignments] = useState({});
-  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', location: '' });
+  // Updated newItem state to support multiple locations array
+  const [newItem, setNewItem] = useState({ name: '', rate: '', unit: '', category: '', locations: [] });
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -628,15 +703,10 @@ const AdminPage = ({ handleSignOut }) => {
     setLoading(true);
 
     const listeners = references.map(({ path, setter }) => {
-      // Start with the base reference
       let dataRef = ref(db, path);
-
-      // If the path is 'users', apply the query required by your security rules
       if (path === 'users') {
         dataRef = query(dataRef, orderByChild('phone'));
       }
-
-      // Use the (potentially modified) reference
       return onValue(dataRef, (snapshot) => {
         setter(firebaseObjectToArray(snapshot));
       }, (error) => toast.error(`Could not sync ${path}.`));
@@ -666,7 +736,6 @@ const AdminPage = ({ handleSignOut }) => {
     let affectedAssignmentsCount = 0;
 
     try {
-      // Find all assignments (ongoing and completed) for this vendor
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('vendorId'), equalTo(vendorId));
       const assignmentsSnapshot = await get(assignmentsQuery);
 
@@ -674,20 +743,15 @@ const AdminPage = ({ handleSignOut }) => {
         assignmentsSnapshot.forEach(assignSnap => {
           const assignment = { id: assignSnap.key, ...assignSnap.val() };
           affectedAssignmentsCount++;
-
-          // If assignment is ongoing, return its items to the queue
           if (assignment.status === 'assigned' && assignment.entryIds) {
             assignment.entryIds.forEach(entryId => {
               updates[`/wasteEntries/${entryId}/isAssigned`] = false;
             });
           }
-
-          // Delete the assignment record
           updates[`/assignments/${assignment.id}`] = null;
         });
       }
 
-      // Find and delete all bills associated with this vendor
       const billsQuery = query(ref(db, 'bills'), orderByChild('vendorId'), equalTo(vendorId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -696,9 +760,7 @@ const AdminPage = ({ handleSignOut }) => {
         });
       }
 
-      // Delete the vendor record itself
       updates[`/vendors/${vendorId}`] = null;
-
       await update(ref(db), updates);
 
       toast.success(`Vendor '${vendorToDelete.name}' and all related data (${affectedAssignmentsCount} assignments) have been permanently deleted.`);
@@ -721,10 +783,7 @@ const AdminPage = ({ handleSignOut }) => {
     const updates = {};
 
     try {
-      // Delete user's own record
       updates[`/users/${userId}`] = null;
-
-      // Find and delete all of the user's waste entries (unassigned)
       const wasteQuery = query(ref(db, 'wasteEntries'), orderByChild('mobile'), equalTo(userMobile));
       const wasteSnapshot = await get(wasteQuery);
       if (wasteSnapshot.exists()) {
@@ -732,8 +791,6 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/wasteEntries/${snap.key}`] = null;
         });
       }
-
-      // Find and delete all of the user's assignments (ongoing and completed)
       const assignmentsQuery = query(ref(db, 'assignments'), orderByChild('userId'), equalTo(userId));
       const assignmentsSnapshot = await get(assignmentsQuery);
       if (assignmentsSnapshot.exists()) {
@@ -741,8 +798,6 @@ const AdminPage = ({ handleSignOut }) => {
           updates[`/assignments/${snap.key}`] = null;
         });
       }
-
-      // Find and delete all of the user's bills
       const billsQuery = query(ref(db, 'bills'), orderByChild('userId'), equalTo(userId));
       const billsSnapshot = await get(billsQuery);
       if (billsSnapshot.exists()) {
@@ -762,7 +817,6 @@ const AdminPage = ({ handleSignOut }) => {
     }
   };
 
-
   // --- CRUD Handlers ---
   const updateVendorStatus = async (id, status) => {
     setProcessingId(id);
@@ -777,7 +831,8 @@ const AdminPage = ({ handleSignOut }) => {
 
   const toggleUserStatus = async (user) => {
     setProcessingId(user.id);
-    const newStatus = user.Status?.toLowerCase() === 'blocked' ? 'Active' : 'Blocked';
+    const currentStatus = user.Status || user.status || 'Active';
+    const newStatus = currentStatus.toLowerCase() === 'blocked' ? 'Active' : 'Blocked';
     try {
       await update(ref(db, `users/${user.id}`), { Status: newStatus });
       toast.success(`User has been ${newStatus.toLowerCase()}.`);
@@ -857,7 +912,7 @@ const AdminPage = ({ handleSignOut }) => {
   const cancelEdit = () => {
     setIsEditing(false);
     setCurrentItemId(null);
-    setNewItem({ name: '', rate: '', unit: '', category: '', location: '' });
+    setNewItem({ name: '', rate: '', unit: '', category: '', locations: [] });
     setItemImage(null);
     setImagePreview(null);
   };
@@ -865,8 +920,8 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    if (Object.values(newItem).some(val => !val)) {
-      return toast.error('Please fill out all fields.');
+    if (!newItem.name || !newItem.rate || !newItem.unit || !newItem.category || (newItem.locations && newItem.locations.length === 0)) {
+      return toast.error('Please fill out all fields and select at least one location.');
     }
     setProcessingId(isEditing ? currentItemId : 'add-item');
 
@@ -879,21 +934,27 @@ const AdminPage = ({ handleSignOut }) => {
         imageUrl = await getDownloadURL(imageRef);
       }
 
-      const itemData = {
+      const baseItemData = {
         name: newItem.name,
         rate: newItem.rate,
         unit: newItem.unit,
         category: newItem.category,
-        location: newItem.location,
         imageUrl: imageUrl
       };
 
       if (isEditing) {
-        await set(ref(db, `items/${currentItemId}`), itemData);
+        // Edit mode: We typically edit a single item which has a single location
+        // If user selected multiple in edit mode, we will just use the first one or the logic is ambiguous.
+        // For safety in this code, we update the current item with the *first* location in the list.
+        await set(ref(db, `items/${currentItemId}`), { ...baseItemData, location: newItem.locations[0] });
         toast.success('Item updated successfully.');
       } else {
-        await set(push(ref(db, 'items')), itemData);
-        toast.success('Item created successfully.');
+        // Create mode: Create an item for EACH selected location
+        const promises = newItem.locations.map(loc => {
+          return set(push(ref(db, 'items')), { ...baseItemData, location: loc });
+        });
+        await Promise.all(promises);
+        toast.success(`Item created for ${newItem.locations.length} location(s) successfully.`);
       }
       cancelEdit();
     } catch (error) {
@@ -913,7 +974,7 @@ const AdminPage = ({ handleSignOut }) => {
       rate: item.rate,
       unit: item.unit,
       category: item.category,
-      location: item.location
+      locations: [item.location] // Populate with the existing location
     });
     setImagePreview(item.imageUrl || null);
     setItemImage(null);
@@ -924,26 +985,23 @@ const AdminPage = ({ handleSignOut }) => {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
 
-    // Check if the item has an image and get a reference to it
     if (itemToDelete.imageUrl) {
       const imageRef = storageRef(storage, itemToDelete.imageUrl);
       try {
         await deleteObject(imageRef);
       } catch (error) {
-        // Log the error but proceed with deleting the database entry
         console.error("Could not delete item image from storage:", error);
         toast.warn("Could not remove the item's image from storage, but the item data will be deleted.");
       }
     }
 
-    // Now, delete the item from the Realtime Database
     try {
       await remove(ref(db, `items/${itemToDelete.id}`));
       toast.success('Item and its image deleted successfully.');
     } catch (error) {
       toast.error('Item deletion from the database failed.');
     } finally {
-      setItemToDelete(null); // Close the confirmation modal
+      setItemToDelete(null);
     }
   };
 
@@ -1048,4 +1106,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default App; 
