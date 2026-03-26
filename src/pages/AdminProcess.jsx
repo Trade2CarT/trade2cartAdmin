@@ -24,10 +24,12 @@ const AdminProcess = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Aligned state with Vendor app
     const [billItems, setBillItems] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
+    // Custom Item Modal State
     const [showCustomModal, setShowCustomModal] = useState(false);
     const [customName, setCustomName] = useState('');
     const [customRate, setCustomRate] = useState('');
@@ -96,20 +98,21 @@ const AdminProcess = () => {
         return itemsInLocation;
     }, [searchTerm, masterItems, vendor, isSearchFocused]);
 
+    // Aligned handleAddItem with Vendor app (rateInput, weightInput)
     const handleAddItem = (item) => {
         const existingItem = billItems.find(billItem => billItem.id === item.id);
         if (existingItem) {
             toast.info(`${item.name} is already added. You can change weight below.`);
         } else {
-            const minRateVal = parseFloat(item.minRate || item.rate) || 0;
+            const rateVal = parseFloat(item.rate) || 0;
             const newBillItem = {
                 ...item,
                 billItemId: `${item.id}-${Date.now()}`,
-                rateInput: minRateVal.toString(),
-                rate: minRateVal,
+                rateInput: item.rate.toString(),
+                rate: rateVal,
                 weightInput: "1",
                 weight: 1,
-                total: minRateVal * 1,
+                total: rateVal * 1,
             };
             setBillItems(prev => [...prev, newBillItem]);
         }
@@ -117,6 +120,7 @@ const AdminProcess = () => {
         setIsSearchFocused(false);
     };
 
+    // Aligned Custom Item Logic
     const handleAddCustom = () => {
         if (!customName.trim() || !customRate.trim()) return toast.error("Please enter a name and price.");
         const rateVal = parseFloat(customRate) || 0;
@@ -137,6 +141,7 @@ const AdminProcess = () => {
         setCustomRate('');
     };
 
+    // Aligned editable Rate logic
     const handleUpdateRate = (billItemId, newRateInput) => {
         setBillItems(prev => prev.map(item => {
             if (item.billItemId === billItemId) {
@@ -147,6 +152,7 @@ const AdminProcess = () => {
         }));
     };
 
+    // Aligned editable Weight logic
     const handleUpdateWeight = (billItemId, newWeightInput) => {
         setBillItems(prev => prev.map(item => {
             if (item.billItemId === billItemId) {
@@ -165,30 +171,13 @@ const AdminProcess = () => {
         return billItems.reduce((acc, item) => acc + (item.total || 0), 0);
     }, [billItems]);
 
-    // --- NEW: STRICT VALIDATION BEFORE SUBMITTING ---
     const handleSubmitBill = async () => {
         if (billItems.length === 0) {
             return toast.error("Please add at least one item to the bill.");
         }
-
-        for (let item of billItems) {
-            if (item.id.startsWith('custom-')) continue;
-
-            const min = parseFloat(item.minRate || item.rate || 0);
-            const max = parseFloat(item.maxRate || item.rate || Infinity);
-
-            if (item.rate < min || item.rate > max) {
-                toast.error(`Error: ${item.name} price must be between ₹${min} and ₹${max}.`);
-                return;
-            }
-            if (item.weight <= 0 || isNaN(item.weight)) {
-                toast.error(`Please enter a valid weight for ${item.name}.`);
-                return;
-            }
-        }
-
         setIsSubmitting(true);
         try {
+            // Data structure explicitly matches the Vendor App
             const billData = {
                 assignmentID: assignmentId,
                 vendorId: assignment.vendorId,
@@ -246,18 +235,12 @@ const AdminProcess = () => {
                             />
                             {isSearchFocused && (
                                 <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-2xl">
-                                    {searchResults.length > 0 ? searchResults.map(item => {
-                                        const min = parseFloat(item.minRate || item.rate || 0);
-                                        const max = parseFloat(item.maxRate || item.rate || 0);
-                                        const display = min === max ? `₹${min}` : `₹${min} - ₹${max}`;
-
-                                        return (
-                                            <div key={item.id} onClick={() => handleAddItem(item)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors">
-                                                <span>{item.name}</span>
-                                                <span className="text-sm text-gray-500">{display}/{item.unit}</span>
-                                            </div>
-                                        )
-                                    }) : (
+                                    {searchResults.length > 0 ? searchResults.map(item => (
+                                        <div key={item.id} onClick={() => handleAddItem(item)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center transition-colors">
+                                            <span>{item.name}</span>
+                                            <span className="text-sm text-gray-500">₹{parseFloat(item.rate).toFixed(2)}/{item.unit}</span>
+                                        </div>
+                                    )) : (
                                         <p className="px-4 py-3 text-gray-500">No items found for '{vendor?.location}'.</p>
                                     )}
                                 </div>
@@ -284,9 +267,6 @@ const AdminProcess = () => {
                                             <tr key={item.billItemId} className="hover:bg-gray-50">
                                                 <td className="px-6 py-4 font-semibold text-gray-800">
                                                     {item.name}
-                                                    {!item.id.startsWith('custom-') && (item.minRate !== item.maxRate) && (
-                                                        <p className="text-xs text-gray-500 font-normal">Limit: ₹{item.minRate || item.rate} - ₹{item.maxRate || item.rate}</p>
-                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 w-32">
                                                     <input
