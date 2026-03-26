@@ -1,13 +1,11 @@
 import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-
 // --- FIREBASE IMPORTS ---
 import { db, auth, storage } from './firebase';
 import { ref, set, update, remove, push, onValue, query, orderByChild, equalTo, get } from 'firebase/database';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-
 
 // --- TOASTIFY IMPORTS ---
 import { ToastContainer, toast } from 'react-toastify';
@@ -20,7 +18,6 @@ const VendorBilling = lazy(() => import('./pages/VendorBilling'));
 const VendorOtp = lazy(() => import('./pages/VendorOtp'));
 const AdminProcess = lazy(() => import('./pages/AdminProcess'));
 const VendorOrders = lazy(() => import('./pages/VendorOrders'));
-
 
 // --- SVG ICONS ---
 const Users = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
@@ -37,7 +34,6 @@ const SignOutIcon = ({ className }) => <svg className={className} xmlns="http://
 const Ban = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m4.9 4.9 14.2 14.2" /></svg>;
 const RefreshCw = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>;
 const Trash2 = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>;
-
 
 // --- Helper Functions ---
 const formatDate = (dateString) => {
@@ -128,7 +124,6 @@ const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
     const activeVendors = vendors.filter(v => v.status === 'approved').length;
     return { pendingAssignments, todaysOrders, totalUsers, activeVendors };
   }, [users, vendors, wasteEntries]);
-
 
   return (
     <div>
@@ -311,7 +306,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
-// --- UPDATED ITEM MANAGEMENT WITH PRICE RANGE ---
+// --- UPDATED UI FOR MANAGE ITEMS ---
 const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
@@ -351,56 +346,116 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
   return (
     <div>
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Item Management</h2>
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Copy Items to New Location</h3>
+
+      {/* Location Copier */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6">
+        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Copy Items to New Location</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <select value={sourceLocation} onChange={(e) => setSourceLocation(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md">
+          <select value={sourceLocation} onChange={(e) => setSourceLocation(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
             <option value="">-- Select Source Location --</option>
             {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
-          <input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="New Location Name" className="w-full p-2 border border-gray-300 rounded-md" />
-          <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400">{processingId === 'copy-location' ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Copy Items'}</button>
+          <input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="New Location Name" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-4 py-3 font-bold text-white bg-gray-800 rounded-lg hover:bg-gray-900 disabled:bg-gray-400">{processingId === 'copy-location' ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Copy Items'}</button>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">{isEditing ? 'Edit Item' : 'Create New Item'}</h3>
-        <form onSubmit={handleItemSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
-          <input name="name" value={newItem.name} placeholder="Name" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <input name="minRate" value={newItem.minRate} placeholder="Min Rate (₹)" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
-          <input name="maxRate" value={newItem.maxRate} placeholder="Max Rate (₹)" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" type="number" required />
+      {/* REDESIGNED FORM */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 mb-6 relative overflow-hidden">
+        <div className={`absolute top-0 left-0 w-1.5 h-full ${isEditing ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
+        <h3 className="text-lg font-bold text-gray-900 mb-6">{isEditing ? 'Edit Existing Item' : 'Create New Item'}</h3>
 
-          <div className="relative">
-            <input name="unit" value={newItem.unit} placeholder="Unit (e.g., kg, item)" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 150)} className="w-full p-2 border border-gray-300 rounded-md" required />
-            {showUnitSuggestions && uniqueUnits.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueUnits.map(unit => (<li key={unit} onMouseDown={() => { setNewItem(prev => ({ ...prev, unit })); setShowUnitSuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{unit}</li>))}</ul>)}
+        <form onSubmit={handleItemSubmit} className="space-y-5">
+          {/* Row 1: Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Item Name</label>
+              <input name="name" value={newItem.name} placeholder="e.g. Iron Scrap" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
+            </div>
+            <div className="relative">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Category</label>
+              <input name="category" value={newItem.category} placeholder="e.g. Metals" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
+              {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer font-semibold">{cat}</li>))}</ul>)}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Location</label>
+              <input name="location" value={newItem.location} placeholder="e.g. Bengaluru" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
+            </div>
           </div>
-          <div className="relative">
-            <input name="category" value={newItem.category} placeholder="Category" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-2 border border-gray-300 rounded-md" required />
-            {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer">{cat}</li>))}</ul>)}
+
+          {/* Row 2: Pricing & Details */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2 flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Min Rate (₹)</label>
+                <input name="minRate" value={newItem.minRate} placeholder="Minimum Price" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" type="number" min="0" required />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Max Rate (₹)</label>
+                <input name="maxRate" value={newItem.maxRate} placeholder="Maximum Price" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" type="number" min="0" required />
+              </div>
+            </div>
+            <div className="relative">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Unit</label>
+              <input name="unit" value={newItem.unit} placeholder="e.g. kg" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 150)} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
+              {showUnitSuggestions && uniqueUnits.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueUnits.map(unit => (<li key={unit} onMouseDown={() => { setNewItem(prev => ({ ...prev, unit })); setShowUnitSuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer font-semibold">{unit}</li>))}</ul>)}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Image Upload</label>
+              <div className="flex items-center gap-2">
+                <input type="file" onChange={handleImageChange} className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50" />
+                {imagePreview && <img src={imagePreview} alt="Preview" className="h-10 w-10 object-cover rounded-md border" />}
+              </div>
+            </div>
           </div>
-          <input name="location" value={newItem.location} placeholder="Location" onChange={handleInputChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-          <div>
-            <input type="file" onChange={handleImageChange} className="w-full p-1.5 border border-gray-300 rounded-md text-xs" />
-            {imagePreview && <img src={imagePreview} alt="Item Preview" className="mt-2 h-16 w-16 object-cover" />}
-          </div>
-          <div className="flex items-center space-x-2 md:col-span-2 lg:col-span-4 xl:col-span-1">
-            <button type="submit" disabled={!!processingId} className="flex-grow flex justify-center items-center px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400">{!!processingId ? <LoaderIcon className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update' : 'Add Item')}</button>
-            {isEditing && (<button type="button" onClick={cancelEdit} className="flex-shrink-0 px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>)}
+
+          {/* Row 3: Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            {isEditing && (<button type="button" onClick={cancelEdit} className="px-6 py-3 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 font-bold transition">Cancel Edit</button>)}
+            <button type="submit" disabled={!!processingId} className={`px-8 py-3 text-white rounded-lg font-bold flex items-center justify-center min-w-[150px] transition shadow-md ${isEditing ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} disabled:bg-gray-400`}>
+              {!!processingId ? <LoaderIcon className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update Item' : 'Save Item')}
+            </button>
           </div>
         </form>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+      {/* ITEMS TABLE */}
+      <div className="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-100">
         <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th scope="col" className="px-6 py-3">Image</th><th scope="col" className="px-6 py-3">Name</th><th scope="col" className="px-6 py-3">Rate Range (₹)</th><th scope="col" className="px-6 py-3">Unit</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Actions</th></tr></thead>
-          <tbody>{items.map(item => (<tr key={item.id} className="bg-white border-b hover:bg-gray-50">
-            <td className="px-6 py-4">
-              {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded-md" />}
-            </td>
-            <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
-            <td className="px-6 py-4 font-semibold text-gray-800">₹{item.minRate || item.rate || 0} - ₹{item.maxRate || item.rate || 0}</td>
-            <td className="px-6 py-4">{item.unit}</td><td className="px-6 py-4">{item.category}</td><td className="px-6 py-4">{item.location}</td><td className="px-6 py-4 flex space-x-2"><button onClick={() => handleEditItem(item)} className="font-medium text-indigo-600 hover:underline">Edit</button><button onClick={() => openDeleteModal(item)} className="font-medium text-red-600 hover:underline">Delete</button></td></tr>))}</tbody>
+          <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+            <tr><th scope="col" className="px-6 py-4">Image</th><th scope="col" className="px-6 py-4">Item Details</th><th scope="col" className="px-6 py-4 text-center">Price Range</th><th scope="col" className="px-6 py-4 text-center">Location</th><th scope="col" className="px-6 py-4 text-right">Actions</th></tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {items.map(item => {
+              const min = parseFloat(item.minRate || item.rate || 0);
+              const max = parseFloat(item.maxRate || item.rate || 0);
+              const display = min === max ? `₹${min}` : `₹${min} - ₹${max}`;
+
+              return (
+                <tr key={item.id} className="bg-white hover:bg-gray-50 transition">
+                  <td className="px-6 py-4">
+                    {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-12 w-12 object-cover rounded-lg shadow-sm border border-gray-200" /> : <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-400">No Img</div>}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-bold text-gray-900 text-base">{item.name}</div>
+                    <div className="text-xs text-gray-500 mt-1 uppercase tracking-widest">{item.category}</div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="font-extrabold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">{display} / {item.unit}</span>
+                  </td>
+                  <td className="px-6 py-4 text-center font-medium text-gray-700">{item.location}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => handleEditItem(item)} className="px-3 py-1.5 text-sm font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md hover:bg-yellow-100 transition">Edit</button>
+                      <button onClick={() => openDeleteModal(item)} className="px-3 py-1.5 text-sm font-bold text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
         </table>
+        {items.length === 0 && <p className="p-8 text-center text-gray-500 font-medium">No items found. Add your first item above.</p>}
       </div>
     </div>
   );
@@ -606,7 +661,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
 
-  // --- UPDATED NEW ITEM STATE FOR RANGE ---
+  // Item Management State
   const [assignments, setAssignments] = useState({});
   const [newItem, setNewItem] = useState({ name: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
   const [currentItemId, setCurrentItemId] = useState(null);
@@ -614,7 +669,6 @@ const AdminPage = ({ handleSignOut }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [itemImage, setItemImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-
 
   // Modal States
   const [billToView, setBillToView] = useState(null);
@@ -647,7 +701,6 @@ const AdminPage = ({ handleSignOut }) => {
     return () => listeners.forEach(unsubscribe => unsubscribe && unsubscribe());
   }, []);
 
-  // Memoized data
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
   const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned), [wasteEntries]);
   const ongoingAssignments = useMemo(() => allAssignments.filter(a => a.status === 'assigned'), [allAssignments]);
@@ -842,7 +895,6 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemInputChange = (e) => setNewItem(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
-  // Reset with new range variables
   const cancelEdit = () => {
     setIsEditing(false);
     setCurrentItemId(null);
@@ -868,9 +920,6 @@ const AdminPage = ({ handleSignOut }) => {
         imageUrl = await getDownloadURL(imageRef);
       }
 
-      // --- CRITICAL BACKWARDS COMPATIBILITY FIX ---
-      // We save both `minRate` and `maxRate`, but we ALSO save `rate: minRate` 
-      // so the vendor app doesn't break when looking for a starting price.
       const itemData = {
         name: newItem.name,
         minRate: parseFloat(newItem.minRate),
