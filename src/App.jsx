@@ -306,7 +306,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
-// --- UPDATED UI FOR MANAGE ITEMS ---
+// --- BULLETPROOF ITEM MANAGEMENT ---
 const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
@@ -360,13 +360,12 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
         </div>
       </div>
 
-      {/* REDESIGNED FORM */}
+      {/* ADD / EDIT FORM */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 mb-6 relative overflow-hidden">
         <div className={`absolute top-0 left-0 w-1.5 h-full ${isEditing ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
         <h3 className="text-lg font-bold text-gray-900 mb-6">{isEditing ? 'Edit Existing Item' : 'Create New Item'}</h3>
 
         <form onSubmit={handleItemSubmit} className="space-y-5">
-          {/* Row 1: Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Item Name</label>
@@ -383,7 +382,6 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             </div>
           </div>
 
-          {/* Row 2: Pricing & Details */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2 flex gap-3">
               <div className="flex-1">
@@ -409,7 +407,6 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             </div>
           </div>
 
-          {/* Row 3: Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
             {isEditing && (<button type="button" onClick={cancelEdit} className="px-6 py-3 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 font-bold transition">Cancel Edit</button>)}
             <button type="submit" disabled={!!processingId} className={`px-8 py-3 text-white rounded-lg font-bold flex items-center justify-center min-w-[150px] transition shadow-md ${isEditing ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} disabled:bg-gray-400`}>
@@ -419,7 +416,7 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
         </form>
       </div>
 
-      {/* ITEMS TABLE */}
+      {/* FIXED TABLE: NO MORE NaN CRASHES */}
       <div className="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-100">
         <table className="w-full text-sm text-left text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
@@ -427,8 +424,15 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
           </thead>
           <tbody className="divide-y divide-gray-100">
             {items.map(item => {
-              const min = parseFloat(item.minRate || item.rate || 0);
-              const max = parseFloat(item.maxRate || item.rate || 0);
+              // --- BULLETPROOF SAFE PARSE ---
+              const parseSafe = (val, fallback) => {
+                const num = parseFloat(val);
+                return isNaN(num) ? fallback : num;
+              };
+
+              const baseRate = parseSafe(item.rate, 0);
+              const min = parseSafe(item.minRate, baseRate);
+              const max = parseSafe(item.maxRate, baseRate);
               const display = min === max ? `₹${min}` : `₹${min} - ₹${max}`;
 
               return (
@@ -920,11 +924,18 @@ const AdminPage = ({ handleSignOut }) => {
         imageUrl = await getDownloadURL(imageRef);
       }
 
+      // --- BULLETPROOF PARSING TO PREVENT NaN ---
+      const minRateParsed = parseFloat(newItem.minRate);
+      const maxRateParsed = parseFloat(newItem.maxRate);
+
+      const safeMin = isNaN(minRateParsed) ? 0 : minRateParsed;
+      const safeMax = isNaN(maxRateParsed) ? 0 : maxRateParsed;
+
       const itemData = {
         name: newItem.name,
-        minRate: parseFloat(newItem.minRate),
-        maxRate: parseFloat(newItem.maxRate),
-        rate: parseFloat(newItem.minRate),
+        minRate: safeMin,
+        maxRate: safeMax,
+        rate: safeMin,
         unit: newItem.unit,
         category: newItem.category,
         location: newItem.location,
@@ -950,10 +961,15 @@ const AdminPage = ({ handleSignOut }) => {
   const handleEditItem = (item) => {
     setIsEditing(true);
     setCurrentItemId(item.id);
+
+    // Safely pull data in case it was bad previously
+    const safeMin = item.minRate !== undefined ? item.minRate : (item.rate || '');
+    const safeMax = item.maxRate !== undefined ? item.maxRate : (item.rate || '');
+
     setNewItem({
       name: item.name,
-      minRate: item.minRate || item.rate || '',
-      maxRate: item.maxRate || item.rate || '',
+      minRate: isNaN(parseFloat(safeMin)) ? '' : safeMin,
+      maxRate: isNaN(parseFloat(safeMax)) ? '' : safeMax,
       unit: item.unit,
       category: item.category,
       location: item.location
