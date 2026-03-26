@@ -26,7 +26,10 @@ const VendorBilling = () => {
             const vendorList = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
             setVendors(vendorList.filter(vendor => vendor.status === 'approved'));
             setLoading(false);
-        }, () => setLoading(false));
+        }, (error) => {
+            console.error("Firebase error fetching vendors:", error);
+            setLoading(false);
+        });
 
         return () => unsubscribe();
     }, []);
@@ -36,37 +39,44 @@ const VendorBilling = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto p-4 sm:p-0">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Vendor Billing</h2>
             <p className="text-gray-600 mb-8">Select a vendor to view their assigned orders and create a bill on their behalf.</p>
 
-            <div className="bg-white rounded-xl shadow-md">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="divide-y divide-gray-200">
-                    {vendors.length > 0 ? vendors.map(vendor => (
-                        <div
-                            key={vendor.id}
-                            className="p-4 sm:p-6 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors"
-                            onClick={() => navigate(`/vendor-orders/${vendor.id}`)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => e.key === 'Enter' && navigate(`/vendor-orders/${vendor.id}`)}
-                        >
-                            <div className="flex items-center gap-4">
-                                {vendor.profilePhotoURL ? (
-                                    <img src={vendor.profilePhotoURL} alt={vendor.name} className="w-12 h-12 rounded-full object-cover" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xl">
-                                        {vendor.name.charAt(0)}
+                    {vendors.length > 0 ? vendors.map(vendor => {
+
+                        // SAFE FALLBACKS: This prevents the page from crashing if a database entry is incomplete
+                        const vendorName = vendor.name || 'Unknown Vendor';
+                        const photo = vendor.profilePhotoURL || vendor.profilePhoto;
+
+                        return (
+                            <div
+                                key={vendor.id}
+                                className="p-4 sm:p-6 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition-colors"
+                                onClick={() => navigate(`/vendor-orders/${vendor.id}`)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => e.key === 'Enter' && navigate(`/vendor-orders/${vendor.id}`)}
+                            >
+                                <div className="flex items-center gap-4">
+                                    {photo ? (
+                                        <img src={photo} alt={vendorName} className="w-12 h-12 rounded-full object-cover shadow-sm" />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xl flex-shrink-0">
+                                            {vendorName.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="font-semibold text-lg text-gray-900">{vendorName}</p>
+                                        <p className="text-sm text-gray-500">{vendor.phone || 'No Phone'} &middot; {vendor.location || 'No Location'}</p>
                                     </div>
-                                )}
-                                <div>
-                                    <p className="font-semibold text-lg text-gray-900">{vendor.name}</p>
-                                    <p className="text-sm text-gray-500">{vendor.phone} &middot; {vendor.location}</p>
                                 </div>
+                                <ChevronRight />
                             </div>
-                            <ChevronRight />
-                        </div>
-                    )) : (
+                        )
+                    }) : (
                         <p className="p-8 text-center text-gray-500">No approved vendors found.</p>
                     )}
                 </div>
