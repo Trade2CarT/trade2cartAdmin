@@ -35,10 +35,14 @@ const Ban = ({ className }) => <svg className={className} xmlns="http://www.w3.o
 const RefreshCw = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>;
 const Trash2 = ({ className }) => <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>;
 
+// --- FIXED: ADDED THE MISSING PHONE & STORE ICONS ---
+const PhoneIcon = ({ className }) => <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>;
+const StoreIcon = ({ className }) => <svg className={className || "w-4 h-4"} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>;
+
 // --- Helper Functions ---
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(dateString).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 const firebaseObjectToArray = (snapshot) => {
@@ -57,11 +61,11 @@ const isToday = (dateString) => {
 
 // --- Reusable UI Components ---
 const DashboardCard = ({ title, value, icon, color, onClick }) => (
-  <div onClick={onClick} className="bg-white p-6 rounded-lg shadow-md flex items-center space-x-4 cursor-pointer hover:shadow-lg hover:scale-105 transition-transform duration-200 ease-in-out">
-    <div className={`p-3 rounded-full ${color}`}>{icon}</div>
+  <div onClick={onClick} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4 cursor-pointer hover:shadow-md hover:-translate-y-1 transition-all duration-200">
+    <div className={`p-4 rounded-full ${color}`}>{icon}</div>
     <div>
-      <p className="text-sm text-gray-500">{title}</p>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
+      <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{title}</p>
+      <p className="text-3xl font-extrabold text-gray-900">{value}</p>
     </div>
   </div>
 );
@@ -69,20 +73,20 @@ const DashboardCard = ({ title, value, icon, color, onClick }) => (
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[70]">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-[70] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-auto animate-slide-up">
         <div className="sm:flex sm:items-start">
           <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
             <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
           <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3>
-            <div className="mt-2"><p className="text-sm text-gray-500">{message}</p></div>
+            <h3 className="text-xl font-extrabold text-gray-900">{title}</h3>
+            <div className="mt-2"><p className="text-sm font-medium text-gray-500">{message}</p></div>
           </div>
         </div>
-        <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-          <button type="button" className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm" onClick={onConfirm}>Confirm</button>
-          <button type="button" className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm" onClick={onClose}>Cancel</button>
+        <div className="mt-6 sm:flex sm:flex-row-reverse gap-3">
+          <button type="button" className="w-full inline-flex justify-center rounded-xl border border-transparent shadow-sm px-6 py-3 bg-red-600 text-base font-bold text-white hover:bg-red-700 sm:w-auto" onClick={onConfirm}>Confirm</button>
+          <button type="button" className="mt-3 w-full inline-flex justify-center rounded-xl border border-gray-300 shadow-sm px-6 py-3 bg-white text-base font-bold text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>
@@ -94,8 +98,8 @@ const ImageModal = ({ src, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-[60] p-4" onClick={onClose}>
       <div className="relative">
-        <img src={src} alt="Preview" className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()} />
-        <button onClick={onClose} className="absolute -top-4 -right-4 text-white bg-gray-800 rounded-full p-2 hover:bg-gray-700">
+        <img src={src} alt="Preview" className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl border-4 border-white" onClick={(e) => e.stopPropagation()} />
+        <button onClick={onClose} className="absolute -top-4 -right-4 text-gray-800 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100">
           <X className="w-6 h-6" />
         </button>
       </div>
@@ -104,7 +108,7 @@ const ImageModal = ({ src, onClose }) => {
 };
 
 const TabButton = ({ id, label, activeTab, setActiveTab }) => (
-  <button onClick={() => setActiveTab(id)} className={`px-4 py-2 font-medium text-sm rounded-md whitespace-nowrap ${activeTab === id ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>
+  <button onClick={() => setActiveTab(id)} className={`px-5 py-3 font-bold text-sm rounded-xl whitespace-nowrap transition-colors ${activeTab === id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}>
     {label}
   </button>
 );
@@ -127,7 +131,7 @@ const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Live Overview</h2>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-6">Live Overview</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <DashboardCard title="Pending Assignments" value={stats.pendingAssignments} icon={<Clock className="w-6 h-6 text-white" />} color="bg-yellow-500" onClick={() => setActiveTab('assignment')} />
         <DashboardCard title="Today's Orders" value={stats.todaysOrders} icon={<Package className="w-6 h-6 text-white" />} color="bg-blue-500" onClick={() => setActiveTab('assignment')} />
@@ -140,35 +144,35 @@ const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
 
 const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, processingId }) => (
   <div>
-    <h2 className="text-2xl font-semibold text-gray-800 mb-6">User Management</h2>
-    <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-      <table className="w-full text-sm text-left text-gray-500">
-        <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+    <h2 className="text-2xl font-extrabold text-gray-900 mb-6">User Management</h2>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+      <table className="w-full text-sm text-left text-gray-500 min-w-[600px]">
+        <thead className="text-xs text-gray-700 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
           <tr>
-            <th scope="col" className="px-6 py-3">Name</th>
-            <th scope="col" className="px-6 py-3">Phone</th>
-            <th scope="col" className="px-6 py-3">Email</th>
-            <th scope="col" className="px-6 py-3">Status</th>
-            <th scope="col" className="px-6 py-3 text-center">Actions</th>
+            <th scope="col" className="px-6 py-4">Name</th>
+            <th scope="col" className="px-6 py-4">Phone</th>
+            <th scope="col" className="px-6 py-4">Email</th>
+            <th scope="col" className="px-6 py-4">Status</th>
+            <th scope="col" className="px-6 py-4 text-center">Actions</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-gray-100">
           {users.map(user => (
-            <tr key={user.id} className="bg-white border-b hover:bg-gray-50">
-              <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{user.name || 'N/A'}</td>
-              <td className="px-6 py-4">{user.phone}</td>
+            <tr key={user.id} className="bg-white hover:bg-gray-50 transition-colors">
+              <td className="px-6 py-4 font-bold text-gray-900 whitespace-nowrap">{user.name || 'N/A'}</td>
+              <td className="px-6 py-4 font-medium">{user.phone}</td>
               <td className="px-6 py-4">{user.email || 'N/A'}</td>
               <td className="px-6 py-4">
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.Status?.toLowerCase() === 'blocked' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${user.Status?.toLowerCase() === 'blocked' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                   {user.Status || 'Active'}
                 </span>
               </td>
               <td className="px-6 py-4 text-center">
                 <div className="flex justify-center items-center space-x-2">
-                  <button onClick={() => toggleUserStatus(user)} disabled={processingId === user.id} className={`flex items-center justify-center w-20 px-3 py-2 text-xs font-medium text-white rounded-md disabled:bg-gray-400 ${user.Status?.toLowerCase() === 'blocked' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'}`}>
+                  <button onClick={() => toggleUserStatus(user)} disabled={processingId === user.id} className={`flex items-center justify-center w-24 px-3 py-2 text-xs font-bold text-white rounded-lg disabled:bg-gray-400 shadow-sm ${user.Status?.toLowerCase() === 'blocked' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-500 hover:bg-yellow-600'}`}>
                     {processingId === user.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : (user.Status?.toLowerCase() === 'blocked' ? 'Unblock' : 'Block')}
                   </button>
-                  <button onClick={() => openDeleteModal(user)} disabled={processingId === user.id} className="p-2 text-red-600 bg-red-100 rounded-md hover:bg-red-200 disabled:bg-gray-400">
+                  <button onClick={() => openDeleteModal(user)} disabled={processingId === user.id} className="p-2 text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 disabled:bg-gray-200 shadow-sm">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -186,32 +190,33 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-auto my-8 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
-          <h3 className="text-xl font-bold text-gray-800">{vendor.name}</h3>
-          <p className="text-sm text-gray-500">{vendor.phone}</p>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto my-8 overflow-hidden max-h-[90vh] flex flex-col animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 relative flex-shrink-0 border-b border-gray-100">
+          <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <h3 className="text-2xl font-extrabold text-gray-900">{vendor.name}</h3>
+          <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone}</p>
         </div>
-        <div className="p-6 border-t border-gray-200 bg-gray-50 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div><p className="font-semibold text-gray-700">Location:</p><p className="text-gray-600">{vendor.location}</p></div>
-            <div><p className="font-semibold text-gray-700">Aadhaar:</p><p className="text-gray-600">{vendor.aadhaar}</p></div>
-            <div><p className="font-semibold text-gray-700">PAN:</p><p className="text-gray-600">{vendor.pan}</p></div>
+        <div className="p-6 bg-gray-50 overflow-y-auto flex-grow">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</p><p className="font-bold text-gray-800 mt-1">{vendor.location}</p></div>
+            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aadhaar</p><p className="font-bold text-gray-800 mt-1">{vendor.aadhaar}</p></div>
+            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">PAN</p><p className="font-bold text-gray-800 mt-1">{vendor.pan}</p></div>
           </div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Uploaded Documents</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <img src={vendor.aadhaarPhotoURL} alt="Aadhaar" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(vendor.aadhaarPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }} />
-            <img src={vendor.panPhotoURL} alt="PAN" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(vendor.panPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }} />
-            <img src={vendor.licensePhotoURL} alt="License" className="w-full h-auto rounded-lg shadow cursor-pointer" onClick={() => setSelectedImage(vendor.licensePhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }} />
+            <img src={vendor.aadhaarPhotoURL} alt="Aadhaar" className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(vendor.aadhaarPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }} />
+            <img src={vendor.panPhotoURL} alt="PAN" className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(vendor.panPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }} />
+            <img src={vendor.licensePhotoURL} alt="License" className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(vendor.licensePhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }} />
           </div>
         </div>
-        <div className="p-4 bg-gray-100 flex justify-end items-center space-x-3">
+        <div className="p-5 bg-white border-t border-gray-100 flex justify-end items-center gap-3 flex-shrink-0">
           {vendor.status === 'pending' && <>
-            <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 mr-2" /> Reject</>}</button>
-            <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Approve</>}</button>
+            <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Reject Vendor'}</button>
+            <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Approve Vendor'}</button>
           </>}
-          {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={processingId === vendor.id} className="flex items-center justify-center w-24 px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><Ban className="w-4 h-4 mr-2" /> Block</>}</button>}
-          {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center w-28 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4 mr-2" /> Unblock</>}</button>}
-          <button onClick={() => onDelete(vendor)} disabled={processingId === vendor.id} className="p-2.5 text-red-600 bg-red-100 rounded-lg hover:bg-red-200 disabled:bg-gray-400"><Trash2 className="w-4 h-4" /></button>
+          {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-gray-700 rounded-xl hover:bg-gray-800 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Block Vendor'}</button>}
+          {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Unblock Vendor'}</button>}
+          <button onClick={() => onDelete(vendor)} disabled={processingId === vendor.id} className="p-3 text-red-600 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 disabled:bg-gray-200"><Trash2 className="w-5 h-5" /></button>
         </div>
       </div>
     </div>
@@ -227,37 +232,40 @@ const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendo
   ], [vendors]);
 
   const VendorList = ({ vendors }) => (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {vendors.length > 0 ? (vendors.map(v => (
-        <button key={v.id} onClick={() => openVendorDetailModal(v)} className="w-full text-left p-4 bg-white rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <div className="flex justify-between items-center">
+        <button key={v.id} onClick={() => openVendorDetailModal(v)} className="w-full text-left p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-300 transition-all duration-200">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <p className="font-bold text-gray-800">{v.name}</p>
-              <p className="text-sm text-gray-600">{v.phone} &middot; {v.location}</p>
+              <p className="font-extrabold text-lg text-gray-900">{v.name}</p>
+              <p className="text-xs font-bold text-gray-400 mt-0.5">{v.phone}</p>
             </div>
-            <span className={`px-3 py-1 text-xs font-semibold rounded-full capitalize ${v.status === 'approved' ? 'bg-green-100 text-green-800' :
-              v.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                v.status === 'blocked' ? 'bg-gray-200 text-gray-800' :
-                  'bg-yellow-100 text-yellow-800'}`
+            <span className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-md ${v.status === 'approved' ? 'bg-green-50 text-green-700 border border-green-200' :
+              v.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
+                v.status === 'blocked' ? 'bg-gray-100 text-gray-700 border border-gray-300' :
+                  'bg-yellow-50 text-yellow-700 border border-yellow-200'}`
             }>{v.status}</span>
           </div>
+          <div className="inline-block bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 border border-gray-200">
+            📍 {v.location}
+          </div>
         </button>
-      ))) : (<div className="text-center py-12 bg-white rounded-lg shadow-sm"><p className="text-gray-500">No vendors in this category.</p></div>)}
+      ))) : (<div className="col-span-full text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100"><p className="text-gray-500 font-bold">No vendors in this category.</p></div>)}
     </div>
   );
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Vendor Verification</h2>
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-2 sm:space-x-6 overflow-x-auto" aria-label="Tabs">
-          <button onClick={() => setActiveVendorTab('pending')} className={`${activeVendorTab === 'pending' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Pending <span className="bg-yellow-100 text-yellow-800 ml-2 px-2 py-0.5 rounded-full text-xs">{pendingVendors.length}</span></button>
-          <button onClick={() => setActiveVendorTab('approved')} className={`${activeVendorTab === 'approved' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Approved <span className="bg-green-100 text-green-800 ml-2 px-2 py-0.5 rounded-full text-xs">{approvedVendors.length}</span></button>
-          <button onClick={() => setActiveVendorTab('rejected')} className={`${activeVendorTab === 'rejected' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Rejected <span className="bg-red-100 text-red-800 ml-2 px-2 py-0.5 rounded-full text-xs">{rejectedVendors.length}</span></button>
-          <button onClick={() => setActiveVendorTab('blocked')} className={`${activeVendorTab === 'blocked' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Blocked <span className="bg-gray-200 text-gray-800 ml-2 px-2 py-0.5 rounded-full text-xs">{blockedVendors.length}</span></button>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-6">Vendor Verification</h2>
+      <div className="mb-6 overflow-x-auto pb-2">
+        <nav className="flex space-x-3 min-w-max" aria-label="Tabs">
+          <button onClick={() => setActiveVendorTab('pending')} className={`px-5 py-3 font-bold text-sm rounded-xl transition-colors ${activeVendorTab === 'pending' ? 'bg-yellow-50 text-yellow-800 border border-yellow-200 shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>Pending <span className="ml-2 bg-white text-yellow-800 px-2 py-0.5 rounded-md shadow-sm">{pendingVendors.length}</span></button>
+          <button onClick={() => setActiveVendorTab('approved')} className={`px-5 py-3 font-bold text-sm rounded-xl transition-colors ${activeVendorTab === 'approved' ? 'bg-green-50 text-green-800 border border-green-200 shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>Approved <span className="ml-2 bg-white text-green-800 px-2 py-0.5 rounded-md shadow-sm">{approvedVendors.length}</span></button>
+          <button onClick={() => setActiveVendorTab('rejected')} className={`px-5 py-3 font-bold text-sm rounded-xl transition-colors ${activeVendorTab === 'rejected' ? 'bg-red-50 text-red-800 border border-red-200 shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>Rejected <span className="ml-2 bg-white text-red-800 px-2 py-0.5 rounded-md shadow-sm">{rejectedVendors.length}</span></button>
+          <button onClick={() => setActiveVendorTab('blocked')} className={`px-5 py-3 font-bold text-sm rounded-xl transition-colors ${activeVendorTab === 'blocked' ? 'bg-gray-200 text-gray-800 border border-gray-300 shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>Blocked <span className="ml-2 bg-white text-gray-800 px-2 py-0.5 rounded-md shadow-sm">{blockedVendors.length}</span></button>
         </nav>
       </div>
-      <div className="mt-6">
+      <div>
         {activeVendorTab === 'pending' && <VendorList vendors={pendingVendors} />}
         {activeVendorTab === 'approved' && <VendorList vendors={approvedVendors} />}
         {activeVendorTab === 'rejected' && <VendorList vendors={rejectedVendors} />}
@@ -270,43 +278,57 @@ const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendo
 const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, assignments, setAssignments, confirmGroupAssignment, processingId }) => {
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Assign New Orders</h2>
-      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-            <tr><th scope="col" className="px-6 py-3">Customer</th><th scope="col" className="px-6 py-3">Location</th><th scope="col" className="px-6 py-3">Items</th><th scope="col" className="px-6 py-3">Assign Vendor</th><th scope="col" className="px-6 py-3">Action</th></tr>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-6">Assign New Orders</h2>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[800px]">
+          <thead className="text-xs text-gray-700 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+            <tr><th scope="col" className="px-6 py-4">Customer Details</th><th scope="col" className="px-6 py-4">Items to Collect</th><th scope="col" className="px-6 py-4">Select Vendor</th><th scope="col" className="px-6 py-4 text-center">Action</th></tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-100">
             {Object.entries(groupedUnassignedEntries).map(([mobile, entries]) => {
               const user = users.find(u => u.phone === mobile);
               if (!user) return null;
               const recommendedVendors = approvedVendors.filter(v => v.location?.toLowerCase() === user.location?.toLowerCase());
               const otherVendors = approvedVendors.filter(v => v.location?.toLowerCase() !== user.location?.toLowerCase());
               return (
-                <tr key={mobile} className="bg-white border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 font-semibold text-gray-900">{user.name || 'N/A'}<br /><span className="font-normal text-gray-500">{mobile}</span></td>
-                  <td className="px-6 py-4">{user.location}</td>
-                  <td className="px-6 py-4"><ul className="list-disc list-inside space-y-1">{entries.map((entry) => (<li key={entry.id}>{entry.name} - {entry.quantity} {entry.unit}</li>))}</ul></td>
+                <tr key={mobile} className="bg-white hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <select value={assignments[mobile] || ''} onChange={(e) => setAssignments(prev => ({ ...prev, [mobile]: e.target.value }))} className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
-                      <option value="">-- Select a Vendor --</option>
-                      {recommendedVendors.length > 0 && <optgroup label={`Recommended for ${user.location}`}>{recommendedVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}</optgroup>}
-                      {otherVendors.length > 0 && <optgroup label="Other Vendors">{otherVendors.map(v => (<option key={v.id} value={v.id}>{v.name} - {v.location || 'N/A'}</option>))}</optgroup>}
+                    <div className="font-bold text-gray-900 text-base">{user.name || 'N/A'}</div>
+                    <div className="text-xs font-bold text-gray-500 mt-1">{mobile}</div>
+                    <div className="inline-block mt-2 bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-blue-100">📍 {user.location}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      {entries.map((entry) => (
+                        <div key={entry.id} className="text-xs font-bold text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg inline-block border border-gray-200 w-fit">
+                          {entry.name} <span className="text-gray-400 mx-1">|</span> {entry.quantity} {entry.unit}
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <select value={assignments[mobile] || ''} onChange={(e) => setAssignments(prev => ({ ...prev, [mobile]: e.target.value }))} className="bg-white border-2 border-gray-200 text-gray-900 font-bold text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full p-3 shadow-sm outline-none transition-colors">
+                      <option value="">-- Assign to... --</option>
+                      {recommendedVendors.length > 0 && <optgroup label={`★ Recommended (${user.location})`}>{recommendedVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}</optgroup>}
+                      {otherVendors.length > 0 && <optgroup label="Other Areas">{otherVendors.map(v => (<option key={v.id} value={v.id}>{v.name} - {v.location || 'N/A'}</option>))}</optgroup>}
                     </select>
                   </td>
-                  <td className="px-6 py-4"><button onClick={() => confirmGroupAssignment(mobile)} disabled={!assignments[mobile] || processingId === mobile} className="flex items-center justify-center w-full sm:w-28 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">{processingId === mobile ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Confirm'}</button></td>
+                  <td className="px-6 py-4">
+                    <button onClick={() => confirmGroupAssignment(mobile)} disabled={!assignments[mobile] || processingId === mobile} className="flex items-center justify-center w-full px-5 py-3 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:bg-gray-400 shadow-sm transition-all active:scale-95">
+                      {processingId === mobile ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Confirm Order'}
+                    </button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {Object.keys(groupedUnassignedEntries).length === 0 && (<p className="p-6 text-center text-gray-500">No new orders to assign.</p>)}
+        {Object.keys(groupedUnassignedEntries).length === 0 && (<div className="p-12 text-center text-gray-500 font-bold text-lg">🎉 No new orders to assign! You're all caught up.</div>)}
       </div>
     </div>
   );
 };
 
-// --- BULLETPROOF ITEM MANAGEMENT ---
 const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
@@ -345,86 +367,82 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Item Management</h2>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-6">Item Management</h2>
 
-      {/* Location Copier */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6">
-        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Copy Items to New Location</h3>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+        <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">Duplicate Menu for New Location</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <select value={sourceLocation} onChange={(e) => setSourceLocation(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-            <option value="">-- Select Source Location --</option>
+          <select value={sourceLocation} onChange={(e) => setSourceLocation(e.target.value)} className="w-full p-3 border-2 border-gray-200 rounded-xl focus:ring-0 focus:border-blue-500 font-bold text-gray-800">
+            <option value="">-- Copy From --</option>
             {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
-          <input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="New Location Name" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
-          <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-4 py-3 font-bold text-white bg-gray-800 rounded-lg hover:bg-gray-900 disabled:bg-gray-400">{processingId === 'copy-location' ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Copy Items'}</button>
+          <input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="New Location Name (e.g. Mumbai)" className="w-full p-3 border-2 border-gray-200 rounded-xl focus:ring-0 focus:border-blue-500 font-bold text-gray-800" />
+          <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-6 py-3 font-extrabold text-white bg-gray-800 rounded-xl hover:bg-gray-900 disabled:bg-gray-400 shadow-md">{processingId === 'copy-location' ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Copy Entire Menu'}</button>
         </div>
       </div>
 
-      {/* ADD / EDIT FORM */}
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100 mb-6 relative overflow-hidden">
-        <div className={`absolute top-0 left-0 w-1.5 h-full ${isEditing ? 'bg-yellow-500' : 'bg-blue-500'}`}></div>
-        <h3 className="text-lg font-bold text-gray-900 mb-6">{isEditing ? 'Edit Existing Item' : 'Create New Item'}</h3>
+      <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100 mb-8 relative overflow-hidden">
+        <div className={`absolute top-0 left-0 w-1.5 h-full ${isEditing ? 'bg-yellow-500' : 'bg-blue-600'}`}></div>
+        <h3 className="text-xl font-extrabold text-gray-900 mb-6">{isEditing ? 'Edit Scrap Item' : 'Add New Scrap Item'}</h3>
 
-        <form onSubmit={handleItemSubmit} className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={handleItemSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Item Name</label>
-              <input name="name" value={newItem.name} placeholder="e.g. Iron Scrap" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
+              <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Item Name</label>
+              <input name="name" value={newItem.name} placeholder="e.g. Iron Scrap" onChange={handleInputChange} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-0 outline-none" required />
             </div>
             <div className="relative">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Category</label>
-              <input name="category" value={newItem.category} placeholder="e.g. Metals" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
-              {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer font-semibold">{cat}</li>))}</ul>)}
+              <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Category</label>
+              <input name="category" value={newItem.category} placeholder="e.g. Metals" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-0 outline-none" required />
+              {showCategorySuggestions && uniqueCategories.length > 0 && (<ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 overflow-y-auto shadow-2xl">{uniqueCategories.map(cat => (<li key={cat} onMouseDown={() => { setNewItem(prev => ({ ...prev, category: cat })); setShowCategorySuggestions(false); }} className="px-4 py-3 hover:bg-blue-50 cursor-pointer font-bold text-gray-700 border-b border-gray-50 last:border-0">{cat}</li>))}</ul>)}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Location</label>
-              <input name="location" value={newItem.location} placeholder="e.g. Bengaluru" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
+              <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Location</label>
+              <input name="location" value={newItem.location} placeholder="e.g. Bengaluru" onChange={handleInputChange} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-0 outline-none" required />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="md:col-span-2 flex gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div className="md:col-span-2 flex gap-4">
               <div className="flex-1">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Min Rate (₹)</label>
-                <input name="minRate" value={newItem.minRate} placeholder="Minimum Price" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" type="number" min="0" required />
+                <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Min Rate (₹)</label>
+                <input name="minRate" value={newItem.minRate} placeholder="Min Price" onChange={handleInputChange} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-0 outline-none" type="number" min="0" required />
               </div>
               <div className="flex-1">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Max Rate (₹)</label>
-                <input name="maxRate" value={newItem.maxRate} placeholder="Maximum Price" onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" type="number" min="0" required />
+                <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Max Rate (₹)</label>
+                <input name="maxRate" value={newItem.maxRate} placeholder="Max Price" onChange={handleInputChange} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-0 outline-none" type="number" min="0" required />
               </div>
             </div>
             <div className="relative">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Unit</label>
-              <input name="unit" value={newItem.unit} placeholder="e.g. kg" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 150)} className="w-full p-3 border border-gray-300 rounded-lg font-semibold text-gray-900 focus:border-blue-500 focus:ring-2" required />
-              {showUnitSuggestions && uniqueUnits.length > 0 && (<ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">{uniqueUnits.map(unit => (<li key={unit} onMouseDown={() => { setNewItem(prev => ({ ...prev, unit })); setShowUnitSuggestions(false); }} className="px-4 py-2 hover:bg-gray-100 cursor-pointer font-semibold">{unit}</li>))}</ul>)}
+              <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Unit</label>
+              <input name="unit" value={newItem.unit} placeholder="e.g. kg" onChange={handleInputChange} onFocus={() => setShowUnitSuggestions(true)} onBlur={() => setTimeout(() => setShowUnitSuggestions(false), 150)} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-0 outline-none" required />
+              {showUnitSuggestions && uniqueUnits.length > 0 && (<ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-xl mt-1 max-h-48 overflow-y-auto shadow-2xl">{uniqueUnits.map(unit => (<li key={unit} onMouseDown={() => { setNewItem(prev => ({ ...prev, unit })); setShowUnitSuggestions(false); }} className="px-4 py-3 hover:bg-blue-50 cursor-pointer font-bold text-gray-700 border-b border-gray-50 last:border-0">{unit}</li>))}</ul>)}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Image Upload</label>
-              <div className="flex items-center gap-2">
-                <input type="file" onChange={handleImageChange} className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50" />
-                {imagePreview && <img src={imagePreview} alt="Preview" className="h-10 w-10 object-cover rounded-md border" />}
+              <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Item Image</label>
+              <div className="flex items-center gap-3">
+                <input type="file" onChange={handleImageChange} className="w-full p-2 border-2 border-gray-200 rounded-xl text-sm bg-gray-50 font-bold text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                {imagePreview && <img src={imagePreview} alt="Preview" className="h-12 w-12 object-cover rounded-xl border border-gray-200 shadow-sm" />}
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            {isEditing && (<button type="button" onClick={cancelEdit} className="px-6 py-3 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 font-bold transition">Cancel Edit</button>)}
-            <button type="submit" disabled={!!processingId} className={`px-8 py-3 text-white rounded-lg font-bold flex items-center justify-center min-w-[150px] transition shadow-md ${isEditing ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} disabled:bg-gray-400`}>
-              {!!processingId ? <LoaderIcon className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update Item' : 'Save Item')}
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+            {isEditing && (<button type="button" onClick={cancelEdit} className="px-6 py-3 text-gray-700 bg-gray-100 border border-gray-300 rounded-xl hover:bg-gray-200 font-bold transition">Cancel</button>)}
+            <button type="submit" disabled={!!processingId} className={`px-8 py-3 text-white rounded-xl font-extrabold flex items-center justify-center min-w-[180px] transition shadow-lg ${isEditing ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-blue-600 hover:bg-blue-700'} disabled:bg-gray-400`}>
+              {!!processingId ? <LoaderIcon className="w-5 h-5 animate-spin" /> : (isEditing ? 'Update Item' : 'Add Item to Menu')}
             </button>
           </div>
         </form>
       </div>
 
-      {/* FIXED TABLE: NO MORE NaN CRASHES */}
-      <div className="bg-white rounded-lg shadow-md overflow-x-auto border border-gray-100">
-        <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-gray-100">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[700px]">
+          <thead className="text-xs text-gray-700 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
             <tr><th scope="col" className="px-6 py-4">Image</th><th scope="col" className="px-6 py-4">Item Details</th><th scope="col" className="px-6 py-4 text-center">Price Range</th><th scope="col" className="px-6 py-4 text-center">Location</th><th scope="col" className="px-6 py-4 text-right">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {items.map(item => {
-              // --- BULLETPROOF SAFE PARSE ---
               const parseSafe = (val, fallback) => {
                 const num = parseFloat(val);
                 return isNaN(num) ? fallback : num;
@@ -436,22 +454,24 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
               const display = min === max ? `₹${min}` : `₹${min} - ₹${max}`;
 
               return (
-                <tr key={item.id} className="bg-white hover:bg-gray-50 transition">
+                <tr key={item.id} className="bg-white hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-12 w-12 object-cover rounded-lg shadow-sm border border-gray-200" /> : <div className="h-12 w-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-400">No Img</div>}
+                    {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-14 w-14 object-cover rounded-xl shadow-sm border border-gray-200" /> : <div className="h-14 w-14 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-400 uppercase">No Img</div>}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900 text-base">{item.name}</div>
-                    <div className="text-xs text-gray-500 mt-1 uppercase tracking-widest">{item.category}</div>
+                    <div className="font-extrabold text-gray-900 text-base">{item.name}</div>
+                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{item.category}</div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className="font-extrabold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">{display} / {item.unit}</span>
+                    <span className="font-extrabold text-blue-700 bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 shadow-sm">{display} / {item.unit}</span>
                   </td>
-                  <td className="px-6 py-4 text-center font-medium text-gray-700">{item.location}</td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="inline-block bg-gray-100 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 border border-gray-200">📍 {item.location}</div>
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => handleEditItem(item)} className="px-3 py-1.5 text-sm font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md hover:bg-yellow-100 transition">Edit</button>
-                      <button onClick={() => openDeleteModal(item)} className="px-3 py-1.5 text-sm font-bold text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition">Delete</button>
+                      <button onClick={() => handleEditItem(item)} className="px-4 py-2 text-xs font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition shadow-sm">Edit</button>
+                      <button onClick={() => openDeleteModal(item)} className="px-4 py-2 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition shadow-sm">Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -459,61 +479,102 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
             })}
           </tbody>
         </table>
-        {items.length === 0 && <p className="p-8 text-center text-gray-500 font-medium">No items found. Add your first item above.</p>}
+        {items.length === 0 && <p className="p-12 text-center text-gray-500 font-bold text-lg">No scrap items found. Add your first item above.</p>}
       </div>
     </div>
   );
 }
 
+// --- FIXED BILL MODAL ---
 const BillModal = ({ bill, onClose }) => {
   if (!bill) return null;
+
   const billItemsArray = bill.billItems ? (Array.isArray(bill.billItems) ? bill.billItems : Object.values(bill.billItems)) : [];
 
   const handlePrint = () => {
     const printContent = document.getElementById('bill-to-print').innerHTML;
     const printWindow = window.open('', '', 'height=600,width=800');
-    printWindow.document.write('<html><head><title>Print Bill</title>');
+    printWindow.document.write('<html><head><title>Tax Invoice</title>');
     printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
-    printWindow.document.write('</head><body class="p-4">');
+    printWindow.document.write('</head><body class="p-8">');
     printWindow.document.write(printContent);
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
   };
 
+  const safeNumber = (val) => {
+    const num = parseFloat(val);
+    return isNaN(num) ? 0 : num;
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-auto">
-        <div id="bill-to-print" className="p-6">
-          <h3 className="text-2xl font-bold text-center mb-4">Tax Invoice</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm mb-6 pb-6 border-b">
-            <div>
-              <p className="font-semibold">Billed To:</p>
-              <p>{bill.user?.name || 'N/A'}</p>
-              <p>{bill.user?.address || 'No address provided'}</p>
-              <p>{bill.user?.phone}</p>
-              <p>{bill.user?.email || 'No email provided'}</p>
-            </div>
-            <div className="text-right"><p className="font-semibold">Collected By:</p><p>{bill.vendor?.name || 'N/A'}</p><p>{bill.vendor?.phone}</p><p><strong>Date:</strong> {formatDate(bill.timestamp)}</p></div>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-auto max-h-[90vh] flex flex-col overflow-hidden relative animate-slide-up">
+
+        <div id="bill-to-print" className="p-6 sm:p-10 overflow-y-auto flex-grow bg-white">
+          <div className="text-center mb-8 border-b border-gray-100 pb-8">
+            <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Tax Invoice</h3>
+            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mt-2">Receipt for Scrap Collection</p>
           </div>
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50"><tr><th className="px-4 py-2">Item</th><th className="px-4 py-2 text-right">Weight/Units</th><th className="px-4 py-2 text-right">Rate</th><th className="px-4 py-2 text-right">Total</th></tr></thead>
-            <tbody>
-              {billItemsArray.map((item, index) => (
-                <tr key={index} className="border-b">
-                  <td className="px-4 py-2 font-medium">{item.name || 'N/A'}</td>
-                  <td className="px-4 py-2 text-right">{item.weight}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.rate).toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">鈧箋parseFloat(item.total).toFixed(2)}</td>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+              <p className="font-extrabold text-gray-400 uppercase text-[10px] tracking-widest mb-3">Customer (Billed To):</p>
+              <p className="font-extrabold text-xl text-gray-900">{bill.user?.name || 'Unknown'}</p>
+              <p className="text-gray-600 font-medium text-sm mt-2">{bill.user?.address || 'No address provided'}</p>
+              <p className="text-gray-800 font-bold text-sm mt-2 flex items-center gap-2"><PhoneIcon /> {bill.user?.phone || bill.mobile}</p>
+            </div>
+            <div className="bg-blue-50 p-5 rounded-xl border border-blue-100 sm:text-right">
+              <p className="font-extrabold text-blue-400 uppercase text-[10px] tracking-widest mb-3">Collected By Vendor:</p>
+              <p className="font-extrabold text-xl text-blue-900">{bill.vendor?.name || 'Unknown'}</p>
+              <p className="text-blue-800 font-bold text-sm mt-2 flex items-center sm:justify-end gap-2"><PhoneIcon /> {bill.vendor?.phone || 'N/A'}</p>
+              <p className="text-blue-800 font-medium text-sm mt-3 border-t border-blue-200 pt-3">
+                <strong>Date:</strong> {bill.timestamp ? formatDate(bill.timestamp) : 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+            <table className="w-full text-sm text-left min-w-[500px]">
+              <thead className="text-xs text-gray-500 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-4 font-extrabold">Item Description</th>
+                  <th className="px-6 py-4 font-extrabold text-right">Qty/Wt</th>
+                  <th className="px-6 py-4 font-extrabold text-right">Rate</th>
+                  <th className="px-6 py-4 font-extrabold text-right text-gray-900">Total</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot><tr className="font-bold"><td colSpan="3" className="px-4 py-2 text-right text-lg">Grand Total</td><td className="px-4 py-2 text-right text-lg">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td></tr></tfoot>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {billItemsArray.map((item, index) => {
+                  const rate = safeNumber(item.rate);
+                  const total = safeNumber(item.total);
+                  return (
+                    <tr key={index} className="bg-white hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-800 text-base">{item.name || 'Unknown Item'}</td>
+                      <td className="px-6 py-4 text-right font-medium text-gray-600">{item.weight || 0} <span className="text-xs text-gray-400">{item.unit || ''}</span></td>
+                      <td className="px-6 py-4 text-right font-bold text-gray-600">₹{rate.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-extrabold text-gray-900 text-base">₹{total.toFixed(2)}</td>
+                    </tr>
+                  )
+                })}
+                {billItemsArray.length === 0 && (
+                  <tr><td colSpan="4" className="px-6 py-8 text-center text-gray-400 font-bold">No items found in this bill.</td></tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="bg-green-50 border-t-2 border-green-200">
+                  <td colSpan="3" className="px-6 py-6 text-right font-extrabold text-green-800 uppercase tracking-widest text-sm">Grand Total Paid</td>
+                  <td className="px-6 py-6 text-right font-extrabold text-green-700 text-3xl">₹{safeNumber(bill.totalBill).toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-        <div className="p-4 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Close</button>
-          <button onClick={handlePrint} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"><Printer className="w-4 h-4" /> Print</button>
+
+        <div className="p-5 sm:px-8 sm:py-5 bg-gray-50 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0">
+          <button onClick={onClose} className="px-6 py-3 bg-white border border-gray-300 text-gray-800 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-sm">Close Window</button>
+          <button onClick={handlePrint} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-md"><Printer className="w-5 h-5" /> Print Invoice</button>
         </div>
       </div>
     </div>
@@ -521,31 +582,69 @@ const BillModal = ({ bill, onClose }) => {
 };
 
 const BillingContent = ({ users, vendors, bills, openBillModal }) => {
+  const sortedBills = [...bills].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">Completed Orders & Billing</h2>
-      <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-500">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-            <tr><th scope="col" className="px-6 py-3">Date</th><th scope="col" className="px-6 py-3">Customer</th><th scope="col" className="px-6 py-3">Vendor</th><th scope="col" className="px-6 py-3 text-right">Amount</th><th scope="col" className="px-6 py-3 text-center">Action</th></tr>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-6">Completed Orders & Billing History</h2>
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-gray-100">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[800px]">
+          <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th scope="col" className="px-6 py-4">Date & Time</th>
+              <th scope="col" className="px-6 py-4">Customer Details</th>
+              <th scope="col" className="px-6 py-4">Assigned Vendor</th>
+              <th scope="col" className="px-6 py-4 text-right">Total Amount</th>
+              <th scope="col" className="px-6 py-4 text-center">Invoice</th>
+            </tr>
           </thead>
-          <tbody>
-            {bills.map(bill => {
-              const user = users.find(u => u.phone === bill.mobile);
-              const vendor = vendors.find(v => v.id === bill.vendorId);
+          <tbody className="divide-y divide-gray-100">
+            {sortedBills.map(bill => {
+              const user = users.find(u => u.phone === bill.mobile) || {};
+              const vendor = vendors.find(v => v.id === bill.vendorId) || {};
+
+              const safeTotalNumber = parseFloat(bill.totalBill);
+              const totalAmount = isNaN(safeTotalNumber) ? 0 : safeTotalNumber;
+
               return (
-                <tr key={bill.id} className="bg-white border-b hover:bg-gray-50">
-                  <td className="px-6 py-4">{formatDate(bill.timestamp)}</td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{user?.name || bill.mobile}</td>
-                  <td className="px-6 py-4">{vendor?.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-right font-semibold">鈧箋parseFloat(bill.totalBill).toFixed(2)}</td>
-                  <td className="px-6 py-4 text-center"><button onClick={() => openBillModal({ ...bill, user, vendor })} className="font-medium text-blue-600 hover:underline">View Bill</button></td>
+                <tr key={bill.id} className="bg-white hover:bg-blue-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-bold text-gray-800">{bill.timestamp ? formatDate(bill.timestamp) : 'N/A'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="font-extrabold text-gray-900 text-base">{user.name || 'Unknown User'}</div>
+                    <div className="text-xs font-bold text-gray-500 mt-0.5">{bill.mobile || 'No Phone'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 font-bold text-xs border border-purple-200">
+                      <StoreIcon /> {vendor.name || 'Unassigned'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <span className="font-extrabold text-green-700 text-xl bg-green-50 px-3 py-1.5 rounded-lg border border-green-200 shadow-sm">
+                      ₹{totalAmount.toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => openBillModal({ ...bill, user, vendor })}
+                      className="inline-flex items-center justify-center px-4 py-2.5 bg-gray-800 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-gray-900 transition-colors active:scale-95"
+                    >
+                      View Invoice
+                    </button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {bills.length === 0 && <p className="p-6 text-center text-gray-500">No completed orders found.</p>}
+        {bills.length === 0 && (
+          <div className="p-16 text-center flex flex-col items-center">
+            <Package className="w-16 h-16 text-gray-200 mb-4" />
+            <p className="text-gray-500 font-extrabold text-lg">No completed bills found.</p>
+            <p className="text-gray-400 font-medium text-sm mt-1">Bills will appear here once vendors complete a pickup.</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -603,7 +702,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
     <div>
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">Ongoing Orders</h2>
       <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-500">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[700px]">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50">
             <tr>
               <th scope="col" className="px-6 py-3">Order ID</th>
@@ -627,7 +726,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
                   <td className="px-6 py-4 text-center">{a.totalItems}</td>
                   <td className="px-6 py-4 text-center">{a.totalQuantity}</td>
                   <td className="px-6 py-4 text-right font-semibold">
-                    鈧箋typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
+                    ₹{typeof a.totalAmount === 'number' ? a.totalAmount.toFixed(2) : '0.00'}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex justify-center items-center space-x-2">
@@ -924,7 +1023,6 @@ const AdminPage = ({ handleSignOut }) => {
         imageUrl = await getDownloadURL(imageRef);
       }
 
-      // --- BULLETPROOF PARSING TO PREVENT NaN ---
       const minRateParsed = parseFloat(newItem.minRate);
       const maxRateParsed = parseFloat(newItem.maxRate);
 
@@ -962,7 +1060,6 @@ const AdminPage = ({ handleSignOut }) => {
     setIsEditing(true);
     setCurrentItemId(item.id);
 
-    // Safely pull data in case it was bad previously
     const safeMin = item.minRate !== undefined ? item.minRate : (item.rate || '');
     const safeMax = item.maxRate !== undefined ? item.maxRate : (item.rate || '');
 
