@@ -1,14 +1,10 @@
 {
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
     "rewrites": [
         {
             "source": "/(.*)",
-            "destination": "/index.html"
-        }
-    ],
-    "crons": [
-        {
-            "path": "/api/check-orders",
-            "schedule": "*/5 * * * *"
+            "destination": "/"
         }
     ]
 }
