@@ -71,7 +71,9 @@ const VendorOrders = () => {
                                     <td className="px-6 py-4 text-gray-500 max-w-xs truncate">{users[assignment.userId]?.address || 'Not available'}</td>
                                     <td className="px-6 py-4 text-right">
                                         <button
-                                            onClick={() => navigate(`/vendor-otp/${vendorId}/${assignment.id}`)}
+                                            // ✅ THE FIX: Instantly bypasses the OTP page and jumps straight to the Admin Process page!
+                                            // Make sure the route below matches what you named it in App.jsx (e.g. '/admin-process/:assignmentId')
+                                            onClick={() => navigate(`/admin-process/${assignment.id}`)}
                                             className="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg text-xs hover:bg-blue-700 transition-colors">
                                             Create Bill
                                         </button>

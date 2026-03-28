@@ -24,12 +24,10 @@ const AdminProcess = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Aligned state with Vendor app
     const [billItems, setBillItems] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-    // Custom Item Modal State
     const [showCustomModal, setShowCustomModal] = useState(false);
     const [customName, setCustomName] = useState('');
     const [customRate, setCustomRate] = useState('');
@@ -98,7 +96,6 @@ const AdminProcess = () => {
         return itemsInLocation;
     }, [searchTerm, masterItems, vendor, isSearchFocused]);
 
-    // Aligned handleAddItem with Vendor app (rateInput, weightInput)
     const handleAddItem = (item) => {
         const existingItem = billItems.find(billItem => billItem.id === item.id);
         if (existingItem) {
@@ -120,7 +117,6 @@ const AdminProcess = () => {
         setIsSearchFocused(false);
     };
 
-    // Aligned Custom Item Logic
     const handleAddCustom = () => {
         if (!customName.trim() || !customRate.trim()) return toast.error("Please enter a name and price.");
         const rateVal = parseFloat(customRate) || 0;
@@ -141,7 +137,6 @@ const AdminProcess = () => {
         setCustomRate('');
     };
 
-    // Aligned editable Rate logic
     const handleUpdateRate = (billItemId, newRateInput) => {
         setBillItems(prev => prev.map(item => {
             if (item.billItemId === billItemId) {
@@ -152,7 +147,6 @@ const AdminProcess = () => {
         }));
     };
 
-    // Aligned editable Weight logic
     const handleUpdateWeight = (billItemId, newWeightInput) => {
         setBillItems(prev => prev.map(item => {
             if (item.billItemId === billItemId) {
@@ -171,37 +165,68 @@ const AdminProcess = () => {
         return billItems.reduce((acc, item) => acc + (item.total || 0), 0);
     }, [billItems]);
 
+    // ✅ NEW BULLETPROOF SUBMISSION LOGIC
     const handleSubmitBill = async () => {
         if (billItems.length === 0) {
             return toast.error("Please add at least one item to the bill.");
         }
         setIsSubmitting(true);
         try {
-            // Data structure explicitly matches the Vendor App
-            const billData = {
+            const timestamp = new Date().toISOString();
+            const promises = [];
+
+            // 1. Log Waste Entries so the customer history is accurate
+            billItems.forEach((item) => {
+                const finalWeight = item.weight || 0;
+                const itemRate = item.rate || 0;
+                const total = finalWeight * itemRate;
+
+                promises.push(update(ref(db, `wasteEntries/${item.billItemId}`), {
+                    ...item,
+                    status: "Processed",
+                    finalWeight: finalWeight,
+                    finalRate: itemRate,
+                    finalTotal: total,
+                    processedAt: timestamp,
+                    assignmentID: assignmentId,
+                    userID: assignment.userId,
+                    mobile: assignment.mobile || "",
+                }));
+            });
+
+            // 2. Update Assignment
+            promises.push(update(ref(db, `assignments/${assignmentId}`), {
+                status: 'Completed',
+                totalAmount: totalBill,
+                completedAt: timestamp
+            }));
+
+            // 3. Reset User
+            promises.push(update(ref(db, `users/${assignment.userId}`), {
+                Status: 'Active',
+                otp: null,
+                currentAssignmentId: null
+            }));
+
+            // 4. Generate Final Bill
+            const billId = `BILL_${Date.now()}`;
+            promises.push(update(ref(db, `bills/${billId}`), {
                 assignmentID: assignmentId,
-                vendorId: assignment.vendorId,
-                userId: assignment.userId,
+                vendorID: assignment.vendorId,
+                userID: assignment.userId,
                 billItems: billItems.map(({ id, billItemId, ...item }) => item),
                 totalBill,
-                timestamp: new Date().toISOString(),
-                mobile: assignment.mobile,
-            };
+                createdAt: timestamp,
+                mobile: assignment.mobile || "",
+            }));
 
-            const updates = {};
-            const newBillRef = push(ref(db, 'bills'));
-            updates[`/bills/${newBillRef.key}`] = billData;
-            updates[`/assignments/${assignmentId}/status`] = 'completed';
-            updates[`/assignments/${assignmentId}/totalAmount`] = totalBill;
-            updates[`/assignments/${assignmentId}/timestamp`] = new Date().toISOString();
-            updates[`/users/${assignment.userId}/Status`] = 'available';
-            updates[`/users/${assignment.userId}/otp`] = null;
-            updates[`/users/${assignment.userId}/currentAssignmentId`] = null;
+            // Execute safely and simultaneously
+            await Promise.all(promises);
 
-            await update(ref(db), updates);
             toast.success("Bill saved and order completed successfully!");
             navigate('/vendor-billing');
         } catch (error) {
+            console.error(error);
             toast.error("An error occurred while submitting the bill.");
         } finally {
             setIsSubmitting(false);
