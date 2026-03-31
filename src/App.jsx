@@ -118,7 +118,8 @@ const TabButton = ({ id, label, activeTab, setActiveTab }) => (
 // --- Dashboard Content Components ---
 const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
   const stats = useMemo(() => {
-    const unassignedEntries = wasteEntries.filter(w => !w.isAssigned);
+    // ✅ Apply the exact same safety filter here so the dashboard counts match exactly
+    const unassignedEntries = wasteEntries.filter(w => !w.isAssigned && w.status !== 'Processed');
     const pendingCustomers = new Set(unassignedEntries.map(w => w.mobile));
     const pendingAssignments = pendingCustomers.size;
 
@@ -807,7 +808,9 @@ const AdminPage = ({ handleSignOut }) => {
   }, []);
 
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
-  const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned), [wasteEntries]);
+
+  // ✅ BUG FIX: Double safety check applied here to ensure processed items never show up
+  const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned && w.status !== 'Processed'), [wasteEntries]);
   const ongoingAssignments = useMemo(() => allAssignments.filter(a => a.status === 'assigned'), [allAssignments]);
   const groupedUnassignedEntries = useMemo(() => {
     return unassignedWasteEntries.reduce((acc, entry) => {

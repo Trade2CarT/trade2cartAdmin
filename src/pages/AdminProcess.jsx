@@ -184,6 +184,7 @@ const AdminProcess = () => {
                 promises.push(update(ref(db, `wasteEntries/${item.billItemId}`), {
                     ...item,
                     status: "Processed",
+                    isAssigned: true, // ✅ BUG FIX: Ensures items don't return to unassigned queue
                     finalWeight: finalWeight,
                     finalRate: itemRate,
                     finalTotal: total,
