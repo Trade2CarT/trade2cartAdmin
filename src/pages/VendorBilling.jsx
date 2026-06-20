@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import Avatar from '../components/Avatar';
+import { vendorPhotoUrl } from '../utils/photos';
 
 const ChevronRight = () => (
     <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
@@ -72,7 +73,7 @@ const VendorBilling = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
                 {filtered.length > 0 ? filtered.map(vendor => {
                     const vendorName = vendor.name || 'Unknown Vendor';
-                    const photo = vendor.profilePhotoURL || vendor.profilePhoto;
+                    const photo = vendorPhotoUrl(vendor);
                     const count = assignmentCounts[vendor.id] || 0;
                     return (
                         <div

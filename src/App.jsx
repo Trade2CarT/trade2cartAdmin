@@ -13,6 +13,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
 import logo from './assets/images/logo.PNG';
 import Avatar from './components/Avatar';
+import { vendorPhotoUrl, docPhotoUrl } from './utils/photos';
 
 
 
@@ -206,7 +207,7 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
         <div className="p-6 relative flex-shrink-0 border-b border-gray-100">
           <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
           <div className="flex items-center gap-4 pr-10">
-            <Avatar src={vendor.profilePhotoURL || vendor.profilePhoto} name={vendor.name} size={64} className="cursor-pointer" />
+            <Avatar src={vendorPhotoUrl(vendor)} name={vendor.name} size={64} className="cursor-pointer" />
             <div className="min-w-0">
               <h3 className="text-2xl font-extrabold text-gray-900 truncate">{vendor.name || 'Unknown Vendor'}</h3>
               <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone || 'No phone'}</p>
@@ -222,9 +223,9 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Photos & Documents</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Selfie', url: vendor.profilePhotoURL || vendor.profilePhoto },
-              { label: 'Aadhaar', url: vendor.aadhaarPhotoURL },
-              { label: 'PAN', url: vendor.panPhotoURL },
+              { label: 'Selfie', url: vendorPhotoUrl(vendor) },
+              { label: 'Aadhaar', url: docPhotoUrl(vendor, 'aadhaar') },
+              { label: 'PAN', url: docPhotoUrl(vendor, 'pan') },
             ].map(({ label, url }) => (
               <div key={label}>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">{label}</p>
@@ -265,7 +266,7 @@ const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendo
         <button key={v.id} onClick={() => openVendorDetailModal(v)} className="w-full text-left p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-brand-300 transition-all duration-200">
           <div className="flex justify-between items-start mb-3">
             <div className="flex items-center gap-3 min-w-0">
-              <Avatar src={v.profilePhotoURL || v.profilePhoto} name={v.name} size={44} />
+              <Avatar src={vendorPhotoUrl(v)} name={v.name} size={44} />
               <div className="min-w-0">
                 <p className="font-extrabold text-lg text-gray-900 truncate">{v.name || 'Unknown Vendor'}</p>
                 <p className="text-xs font-bold text-gray-400 mt-0.5">{v.phone || 'No phone'}</p>
