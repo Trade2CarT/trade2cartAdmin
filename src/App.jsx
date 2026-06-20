@@ -215,7 +215,7 @@ const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, proce
                   <Avatar name={user.name || '#'} size={40} />
                   <div>
                     <p className="font-bold text-gray-900">{user.name || <span className="text-gray-400 italic font-medium">No name yet</span>}</p>
-                    <p className="text-xs text-gray-500 font-semibold">{user.phone || '—'}</p>
+                    <p className="text-xs text-gray-500 font-semibold">{user.phone || user.phoneNumber || '—'}</p>
                   </div>
                 </div>
               </td>
@@ -363,7 +363,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
           </thead>
           <tbody className="divide-y divide-gray-100">
             {Object.entries(groupedUnassignedEntries).map(([mobile, entries]) => {
-              const user = users.find(u => u.phone === mobile);
+              const user = users.find(u => (u.phone || u.phoneNumber) === mobile);
               const recommendedVendors = approvedVendors.filter(v => user?.location && v.location?.toLowerCase() === user.location?.toLowerCase());
               const otherVendors = approvedVendors.filter(v => !user?.location || v.location?.toLowerCase() !== user.location?.toLowerCase());
               return (
@@ -603,7 +603,7 @@ const BillModal = ({ bill, onClose }) => {
               <p className="font-extrabold text-gray-400 uppercase text-[10px] tracking-widest mb-3">Customer (Billed To):</p>
               <p className="font-extrabold text-xl text-gray-900">{bill.user?.name || 'Unknown'}</p>
               <p className="text-gray-600 font-medium text-sm mt-2">{bill.user?.address || 'No address provided'}</p>
-              <p className="text-gray-800 font-bold text-sm mt-2 flex items-center gap-2"><PhoneIcon /> {bill.user?.phone || bill.mobile}</p>
+              <p className="text-gray-800 font-bold text-sm mt-2 flex items-center gap-2"><PhoneIcon /> {bill.user?.phone || bill.user?.phoneNumber || bill.mobile}</p>
             </div>
             <div className="bg-brand-50 p-5 rounded-xl border border-brand-100 sm:text-right">
               <p className="font-extrabold text-brand-400 uppercase text-[10px] tracking-widest mb-3">Collected By Vendor:</p>
@@ -680,7 +680,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sortedBills.map(bill => {
-              const user = users.find(u => u.phone === bill.mobile) || {};
+              const user = users.find(u => (u.phone || u.phoneNumber) === bill.mobile) || {};
               const vendor = vendors.find(v => v.id === bill.vendorID) || {};
 
               const safeTotalNumber = parseFloat(bill.totalBill);
@@ -796,7 +796,7 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
           </thead>
           <tbody>
             {enhancedAssignments.map(a => {
-              const user = users.find(u => u.phone === a.mobile);
+              const user = users.find(u => (u.phone || u.phoneNumber) === a.mobile);
               const vendor = vendors.find(v => v.id === a.vendorId);
               return (
                 <tr key={a.id} className="bg-white border-b hover:bg-gray-50">
@@ -1053,7 +1053,7 @@ const AdminPage = ({ handleSignOut }) => {
     setProcessingId(mobile);
     const vendor = vendors.find(v => v.id === vendorId);
     const entriesToAssign = wasteEntries.filter(w => w.mobile === mobile && !w.isAssigned);
-    const user = users.find(u => u.phone === mobile);
+    const user = users.find(u => (u.phone || u.phoneNumber) === mobile);
     if (!vendor || !user || entriesToAssign.length === 0) {
       toast.error('Could not find all necessary data for assignment.');
       setProcessingId(null); return;
