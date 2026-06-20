@@ -13,6 +13,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
 import logo from './assets/images/logo.PNG';
 import Avatar from './components/Avatar';
+import ErrorBoundary from './components/ErrorBoundary';
 import { vendorPhotoUrl, docPhotoUrl } from './utils/photos';
 
 
@@ -1224,7 +1225,7 @@ const App = () => {
 
   return (
     <Router>
-      <>
+      <ErrorBoundary>
         <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-gray-100"><LoaderIcon className="w-16 h-16 animate-spin text-brand-500" /></div>}>
           <Routes>
             <Route path="/login" element={user ? <Navigate to="/" /> : <AdminLogin />} />
@@ -1237,7 +1238,7 @@ const App = () => {
           </Routes>
         </Suspense>
         <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="light" />
-      </>
+      </ErrorBoundary>
     </Router>
   );
 };

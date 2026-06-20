@@ -90,7 +90,7 @@ const AdminProcess = () => {
 
         if (searchTerm.trim()) {
             return itemsInLocation.filter(item =>
-                item.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
+                (item.name || '').toLowerCase().includes(searchTerm.trim().toLowerCase())
             );
         }
         return itemsInLocation;
@@ -311,7 +311,7 @@ const AdminProcess = () => {
                                                     />
                                                 </td>
                                                 <td className="px-6 py-4 text-right font-bold text-gray-900 text-lg">
-                                                    ₹{item.total.toFixed(2)}
+                                                    ₹{(Number(item.total) || 0).toFixed(2)}
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <button onClick={() => handleRemoveItem(item.billItemId)} className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50">
