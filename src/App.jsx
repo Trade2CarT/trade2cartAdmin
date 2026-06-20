@@ -318,15 +318,18 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
           <tbody className="divide-y divide-gray-100">
             {Object.entries(groupedUnassignedEntries).map(([mobile, entries]) => {
               const user = users.find(u => u.phone === mobile);
-              if (!user) return null;
-              const recommendedVendors = approvedVendors.filter(v => v.location?.toLowerCase() === user.location?.toLowerCase());
-              const otherVendors = approvedVendors.filter(v => v.location?.toLowerCase() !== user.location?.toLowerCase());
+              const recommendedVendors = approvedVendors.filter(v => user?.location && v.location?.toLowerCase() === user.location?.toLowerCase());
+              const otherVendors = approvedVendors.filter(v => !user?.location || v.location?.toLowerCase() !== user.location?.toLowerCase());
               return (
                 <tr key={mobile} className="bg-white hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900 text-base">{user.name || <span className="text-gray-400 italic font-medium">No name yet</span>}</div>
+                    <div className="font-bold text-gray-900 text-base">{user?.name || <span className="text-gray-400 italic font-medium">No name yet</span>}</div>
                     <div className="text-xs font-bold text-gray-500 mt-1">{mobile}</div>
-                    <div className="inline-block mt-2 bg-brand-50 text-brand-700 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-brand-100">📍 {user.location}</div>
+                    {user?.location ? (
+                      <div className="inline-block mt-2 bg-brand-50 text-brand-700 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-brand-100">📍 {user.location}</div>
+                    ) : (
+                      <div className="inline-block mt-2 bg-yellow-50 text-yellow-800 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-yellow-200">⚠ Profile not found</div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
@@ -340,12 +343,12 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
                   <td className="px-6 py-4">
                     <select value={assignments[mobile] || ''} onChange={(e) => setAssignments(prev => ({ ...prev, [mobile]: e.target.value }))} className="bg-white border-2 border-gray-200 text-gray-900 font-bold text-sm rounded-xl focus:ring-brand-500 focus:border-brand-500 block w-full p-3 shadow-sm outline-none transition-colors">
                       <option value="">-- Assign to... --</option>
-                      {recommendedVendors.length > 0 && <optgroup label={`★ Recommended (${user.location})`}>{recommendedVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}</optgroup>}
+                      {recommendedVendors.length > 0 && <optgroup label={`★ Recommended (${user?.location || ''})`}>{recommendedVendors.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}</optgroup>}
                       {otherVendors.length > 0 && <optgroup label="Other Areas">{otherVendors.map(v => (<option key={v.id} value={v.id}>{v.name} - {v.location || 'N/A'}</option>))}</optgroup>}
                     </select>
                   </td>
                   <td className="px-6 py-4">
-                    <button onClick={() => confirmGroupAssignment(mobile)} disabled={!assignments[mobile] || processingId === mobile} className="flex items-center justify-center w-full px-5 py-3 text-sm font-bold text-white bg-brand-600 rounded-xl hover:bg-brand-700 disabled:bg-gray-400 shadow-sm transition-all active:scale-95">
+                    <button onClick={() => confirmGroupAssignment(mobile)} disabled={!assignments[mobile] || processingId === mobile || !user} title={!user ? 'User profile not found — cannot generate pickup OTP' : ''} className="flex items-center justify-center w-full px-5 py-3 text-sm font-bold text-white bg-brand-600 rounded-xl hover:bg-brand-700 disabled:bg-gray-400 shadow-sm transition-all active:scale-95">
                       {processingId === mobile ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Confirm Order'}
                     </button>
                   </td>
