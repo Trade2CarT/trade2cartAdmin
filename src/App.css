@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/* =================================================================
+   TRADE2CART ADMIN · BRAND PALETTE  (sampled from the logo)
+   Green swoosh  → brand   (primary)
+   Orange "2"    → accent  (highlights)
+   Black wordmark→ slate/ink (emphasis & neutrals)
+================================================================= */
+@theme {
+    /* Primary — logo green (~#41AB66) */
+    --color-brand-50: #edf9f1;
+    --color-brand-100: #d3f0dd;
+    --color-brand-200: #a9e1bd;
+    --color-brand-300: #7ed09a;
+    --color-brand-400: #57c07c;
+    --color-brand-500: #41ab66;
+    --color-brand-600: #2f9354;
+    --color-brand-700: #267544;
+    --color-brand-800: #205c38;
+    --color-brand-900: #1b4b2f;
+
+    /* Accent — logo orange (~#F2911E) */
+    --color-accent-50: #fef5e8;
+    --color-accent-100: #fde6c5;
+    --color-accent-200: #fbcd8b;
+    --color-accent-300: #f8b153;
+    --color-accent-400: #f59e30;
+    --color-accent-500: #f2911e;
+    --color-accent-600: #d97a10;
+    --color-accent-700: #b35f0d;
+}
+
+body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle branded scrollbar */
+.nice-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+.nice-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.nice-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+.nice-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: content-box; }
