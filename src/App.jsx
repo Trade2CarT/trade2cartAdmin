@@ -1257,7 +1257,7 @@ const App = () => {
             </Route>
             <Route path="/vendor-billing" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><VendorBilling /></AdminShell> : <Navigate to="/login" />} />
             <Route path="/vendor-orders/:vendorId" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><VendorOrders /></AdminShell> : <Navigate to="/login" />} />
-            <Route path="/vendor-otp/:vendorId/:assignmentId" element={user ? <VendorOtp /> : <Navigate to="/login" />} />
+            <Route path="/vendor-otp/:vendorId/:assignmentId" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><VendorOtp /></AdminShell> : <Navigate to="/login" />} />
             <Route path="/admin-process/:assignmentId" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><AdminProcess /></AdminShell> : <Navigate to="/login" />} />
           </Routes>
         </Suspense>

@@ -79,8 +79,8 @@ const VendorOtp = () => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-sm mx-auto bg-white p-8 rounded-2xl shadow-lg text-center">
+        <div className="flex flex-col items-center justify-center py-10">
+            <div className="w-full max-w-sm mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
                 <h2 className="text-2xl font-bold text-gray-800">Verify Customer OTP</h2>
                 <p className="text-gray-500 mt-2 mb-6">Enter the 4-digit OTP from the customer to proceed.</p>
 
