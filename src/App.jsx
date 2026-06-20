@@ -12,6 +12,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css'
 import logo from './assets/images/logo.PNG';
+import Avatar from './components/Avatar';
 
 
 
@@ -148,13 +149,13 @@ const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
 
 const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, processingId }) => (
   <div>
-    <h2 className="text-2xl font-extrabold text-gray-900 mb-6">User Management</h2>
+    <h2 className="text-2xl font-extrabold text-gray-900 mb-1">User Management</h2>
+    <p className="text-sm text-gray-500 font-medium mb-6">Customers sign up with just a phone number — name, email and address are captured when they schedule a pickup.</p>
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-      <table className="w-full text-sm text-left text-gray-500 min-w-[600px]">
+      <table className="w-full text-sm text-left text-gray-500 min-w-[560px]">
         <thead className="text-xs text-gray-700 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
           <tr>
-            <th scope="col" className="px-6 py-4">Name</th>
-            <th scope="col" className="px-6 py-4">Phone</th>
+            <th scope="col" className="px-6 py-4">User</th>
             <th scope="col" className="px-6 py-4">Email</th>
             <th scope="col" className="px-6 py-4">Status</th>
             <th scope="col" className="px-6 py-4 text-center">Actions</th>
@@ -163,9 +164,16 @@ const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, proce
         <tbody className="divide-y divide-gray-100">
           {users.map(user => (
             <tr key={user.id} className="bg-white hover:bg-gray-50 transition-colors">
-              <td className="px-6 py-4 font-bold text-gray-900 whitespace-nowrap">{user.name || 'N/A'}</td>
-              <td className="px-6 py-4 font-medium">{user.phone}</td>
-              <td className="px-6 py-4">{user.email || 'N/A'}</td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center gap-3">
+                  <Avatar name={user.name || '#'} size={40} />
+                  <div>
+                    <p className="font-bold text-gray-900">{user.name || <span className="text-gray-400 italic font-medium">No name yet</span>}</p>
+                    <p className="text-xs text-gray-500 font-semibold">{user.phone || '—'}</p>
+                  </div>
+                </div>
+              </td>
+              <td className="px-6 py-4">{user.email || <span className="text-gray-300">—</span>}</td>
               <td className="px-6 py-4">
                 <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${user.Status?.toLowerCase() === 'blocked' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
                   {user.Status || 'Active'}
@@ -197,8 +205,13 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto my-8 overflow-hidden max-h-[90vh] flex flex-col animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="p-6 relative flex-shrink-0 border-b border-gray-100">
           <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
-          <h3 className="text-2xl font-extrabold text-gray-900">{vendor.name}</h3>
-          <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone}</p>
+          <div className="flex items-center gap-4 pr-10">
+            <Avatar src={vendor.profilePhotoURL || vendor.profilePhoto} name={vendor.name} size={64} className="cursor-pointer" />
+            <div className="min-w-0">
+              <h3 className="text-2xl font-extrabold text-gray-900 truncate">{vendor.name || 'Unknown Vendor'}</h3>
+              <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone || 'No phone'}</p>
+            </div>
+          </div>
         </div>
         <div className="p-6 bg-gray-50 overflow-y-auto flex-grow">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
@@ -206,11 +219,22 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
             <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aadhaar</p><p className="font-bold text-gray-800 mt-1">{vendor.aadhaar}</p></div>
             <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">PAN</p><p className="font-bold text-gray-800 mt-1">{vendor.pan}</p></div>
           </div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Uploaded Documents</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Photos & Documents</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <img src={vendor.aadhaarPhotoURL} alt="Aadhaar" className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(vendor.aadhaarPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=Aadhaar+Not+Found'; }} />
-            <img src={vendor.panPhotoURL} alt="PAN" className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(vendor.panPhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=PAN+Not+Found'; }} />
-            <img src={vendor.licensePhotoURL} alt="License" className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(vendor.licensePhotoURL)} onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/400x250/e2e8f0/334155?text=License+Not+Found'; }} />
+            {[
+              { label: 'Selfie', url: vendor.profilePhotoURL || vendor.profilePhoto },
+              { label: 'Aadhaar', url: vendor.aadhaarPhotoURL },
+              { label: 'PAN', url: vendor.panPhotoURL },
+            ].map(({ label, url }) => (
+              <div key={label}>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">{label}</p>
+                {url ? (
+                  <img src={url} alt={label} className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(url)} onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x250/e2e8f0/334155?text=${label}+Not+Found`; }} />
+                ) : (
+                  <div className="w-full h-32 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-[11px] font-bold text-gray-400 text-center px-2">No {label} uploaded</div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
         <div className="p-5 bg-white border-t border-gray-100 flex justify-end items-center gap-3 flex-shrink-0">
@@ -240,9 +264,12 @@ const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendo
       {vendors.length > 0 ? (vendors.map(v => (
         <button key={v.id} onClick={() => openVendorDetailModal(v)} className="w-full text-left p-5 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-brand-300 transition-all duration-200">
           <div className="flex justify-between items-start mb-3">
-            <div>
-              <p className="font-extrabold text-lg text-gray-900">{v.name}</p>
-              <p className="text-xs font-bold text-gray-400 mt-0.5">{v.phone}</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar src={v.profilePhotoURL || v.profilePhoto} name={v.name} size={44} />
+              <div className="min-w-0">
+                <p className="font-extrabold text-lg text-gray-900 truncate">{v.name || 'Unknown Vendor'}</p>
+                <p className="text-xs font-bold text-gray-400 mt-0.5">{v.phone || 'No phone'}</p>
+              </div>
             </div>
             <span className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-md ${v.status === 'approved' ? 'bg-green-50 text-green-700 border border-green-200' :
               v.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -297,7 +324,7 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
               return (
                 <tr key={mobile} className="bg-white hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900 text-base">{user.name || 'N/A'}</div>
+                    <div className="font-bold text-gray-900 text-base">{user.name || <span className="text-gray-400 italic font-medium">No name yet</span>}</div>
                     <div className="text-xs font-bold text-gray-500 mt-1">{mobile}</div>
                     <div className="inline-block mt-2 bg-brand-50 text-brand-700 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-brand-100">📍 {user.location}</div>
                   </td>
