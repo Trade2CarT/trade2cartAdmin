@@ -237,7 +237,7 @@ const AdminProcess = () => {
     if (loading) return <Loader />;
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 relative">
+        <div className="max-w-7xl mx-auto relative">
             <button onClick={() => navigate(-1)} className="text-sm text-brand-600 hover:underline mb-6">&larr; Back to Orders</button>
             <h1 className="text-3xl font-bold text-gray-900 mb-8">Create Bill (Admin View)</h1>
 

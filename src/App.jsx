@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 // --- FIREBASE IMPORTS ---
 import { db, auth, storage } from './firebase';
@@ -113,11 +113,55 @@ const ImageModal = ({ src, onClose }) => {
   );
 };
 
-const TabButton = ({ id, label, activeTab, setActiveTab }) => (
-  <button onClick={() => setActiveTab(id)} className={`px-5 py-3 font-bold text-sm rounded-xl whitespace-nowrap transition-colors ${activeTab === id ? 'bg-brand-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}>
-    {label}
-  </button>
+// Single source of truth for the admin navigation, shared by the main panel
+// (AdminPage) and the standalone billing pages (AdminShell) so the side menu
+// is always visible.
+const ADMIN_TABS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'users', label: 'Users' },
+  { id: 'verification', label: 'Vendors' },
+  { id: 'assignment', label: 'Assign Orders' },
+  { id: 'ongoing', label: 'Ongoing Orders' },
+  { id: 'items', label: 'Manage Items' },
+  { id: 'billing', label: 'Billing' },
+  { id: 'vendor-billing', label: 'Vendor Billing' },
+];
+
+const AdminSidebar = ({ activeTab, onTab, onSignOut }) => (
+  <aside className="w-full md:w-64 bg-white md:min-h-screen p-4 md:p-6 shadow-lg flex flex-col flex-shrink-0">
+    <div>
+      <div className="flex items-center gap-3 mb-8">
+        <img src={logo} alt="Trade2Cart" className="w-11 h-11 rounded-2xl border border-gray-100 shadow-sm" />
+        <div className="leading-none">
+          <h1 className="text-lg font-black tracking-tight text-gray-900">Trade<span className="text-accent-500">2</span>Cart</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mt-1">Admin Console</p>
+        </div>
+      </div>
+      <nav className="flex md:flex-col md:space-y-2 overflow-x-auto pb-2 -mx-4 px-4">
+        {ADMIN_TABS.map(t => (
+          <button key={t.id} onClick={() => onTab(t.id)} className={`px-5 py-3 font-bold text-sm rounded-xl whitespace-nowrap transition-colors ${activeTab === t.id ? 'bg-brand-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+    </div>
+    <div className="mt-auto pt-4"><button onClick={onSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200"><SignOutIcon className="w-5 h-5" /> Sign Out</button></div>
+  </aside>
 );
+
+// Layout wrapper for the standalone billing routes — keeps the sidebar visible.
+// Its tab buttons navigate back to the main panel with the chosen tab.
+const AdminShell = ({ children, activeTab = 'vendor-billing', handleSignOut }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-gray-100 min-h-screen font-sans">
+      <div className="md:flex">
+        <AdminSidebar activeTab={activeTab} onTab={(id) => navigate('/', { state: { tab: id } })} onSignOut={handleSignOut} />
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
+    </div>
+  );
+};
 
 // --- Dashboard Content Components ---
 const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
@@ -787,7 +831,8 @@ const OngoingOrdersContent = ({ assignments, users, vendors, wasteEntries, openT
 
 // --- Admin Panel Component ---
 const AdminPage = ({ handleSignOut }) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'dashboard');
   const [activeVendorTab, setActiveVendorTab] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
@@ -1156,28 +1201,7 @@ const AdminPage = ({ handleSignOut }) => {
   return (
     <div className="bg-gray-100 min-h-screen font-sans">
       <div className="md:flex">
-        <aside className="w-full md:w-64 bg-white md:min-h-screen p-4 md:p-6 shadow-lg flex flex-col">
-          <div>
-            <div className="flex items-center gap-3 mb-8">
-              <img src={logo} alt="Trade2Cart" className="w-11 h-11 rounded-2xl border border-gray-100 shadow-sm" />
-              <div className="leading-none">
-                <h1 className="text-lg font-black tracking-tight text-gray-900">Trade<span className="text-accent-500">2</span>Cart</h1>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mt-1">Admin Console</p>
-              </div>
-            </div>
-            <nav className="flex md:flex-col md:space-y-2 overflow-x-auto pb-2 -mx-4 px-4">
-              <TabButton id="dashboard" label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="users" label="Users" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="verification" label="Vendors" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="assignment" label="Assign Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="ongoing" label="Ongoing Orders" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="items" label="Manage Items" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="billing" label="Billing" activeTab={activeTab} setActiveTab={setActiveTab} />
-              <TabButton id="vendor-billing" label="Vendor Billing" activeTab={activeTab} setActiveTab={setActiveTab} />
-            </nav>
-          </div>
-          <div className="mt-auto pt-4"><button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-red-600 bg-red-100 rounded-lg hover:bg-red-200"><SignOutIcon className="w-5 h-5" /> Sign Out</button></div>
-        </aside>
+        <AdminSidebar activeTab={activeTab} onTab={setActiveTab} onSignOut={handleSignOut} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <Suspense fallback={<div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-brand-500" /></div>}>
             {activeTab === 'vendor-billing' ? <VendorBilling /> : renderContent()}
@@ -1231,10 +1255,10 @@ const App = () => {
             <Route path="/login" element={user ? <Navigate to="/" /> : <AdminLogin />} />
             <Route path="/" element={user ? <AdminPage handleSignOut={handleSignOut} /> : <Navigate to="/login" />}>
             </Route>
-            <Route path="/vendor-billing" element={user ? <VendorBilling /> : <Navigate to="/login" />} />
-            <Route path="/vendor-orders/:vendorId" element={user ? <VendorOrders /> : <Navigate to="/login" />} />
+            <Route path="/vendor-billing" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><VendorBilling /></AdminShell> : <Navigate to="/login" />} />
+            <Route path="/vendor-orders/:vendorId" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><VendorOrders /></AdminShell> : <Navigate to="/login" />} />
             <Route path="/vendor-otp/:vendorId/:assignmentId" element={user ? <VendorOtp /> : <Navigate to="/login" />} />
-            <Route path="/admin-process/:assignmentId" element={user ? <AdminProcess /> : <Navigate to="/login" />} />
+            <Route path="/admin-process/:assignmentId" element={user ? <AdminShell handleSignOut={handleSignOut} activeTab="vendor-billing"><AdminProcess /></AdminShell> : <Navigate to="/login" />} />
           </Routes>
         </Suspense>
         <ToastContainer position="bottom-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="light" />

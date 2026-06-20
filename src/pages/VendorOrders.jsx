@@ -45,7 +45,7 @@ const VendorOrders = () => {
     }, [vendorId]);
 
     return (
-        <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
+        <div>
             <div className="max-w-4xl mx-auto">
                 <button onClick={() => navigate('/vendor-billing')} className="text-sm font-bold text-brand-600 hover:underline mb-4 inline-flex items-center gap-1">
                     &larr; Back to Vendors
