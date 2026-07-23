@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer';
 // and the Vendor app (on completion) POST here with { type, ...details }.
 // Recipients come from NOTIFY_TO (comma-separated); SMTP creds from EMAIL_USER/PASS.
 
-const DASHBOARD_URL = 'https://trade2cartadmin.vercel.app';
+const DASHBOARD_URL = 'https://trade2cart.trade.admin.trade2cart.in';
 
 // Escape user-supplied values so a name/address can't break the HTML.
 const esc = (v) =>
