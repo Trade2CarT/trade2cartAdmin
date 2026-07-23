@@ -19,12 +19,12 @@ export default async function handler(req, res) {
         const { type, customerName, customerPhone, address, items, total, vendorName } = body;
 
         const transporter = nodemailer.createTransport({
-            host: 'smtpout.secureserver.net',
+            host: 'smtp.gmail.com',
             port: 465,
             secure: true,
             auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
+                user: process.env.EMAIL_USER, // trade2cart@gmail.com
+                pass: process.env.EMAIL_PASS, // Gmail App Password (set in Vercel env)
             },
         });
 
