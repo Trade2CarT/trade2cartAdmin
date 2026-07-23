@@ -1062,11 +1062,17 @@ const AdminPage = ({ handleSignOut }) => {
       const updates = {};
       const productsSummary = entriesToAssign.map(e => `${e.name} (${e.quantity} ${e.unit})`).join(', ');
       const entryIds = entriesToAssign.map(e => e.id);
-      const totalAmount = entriesToAssign.reduce((sum, entry) => sum + parseFloat(entry.total || 0), 0);
+      // Guard against NaN — Firebase rejects the whole multi-path update if any value is NaN.
+      const totalAmount = entriesToAssign.reduce((sum, entry) => {
+        const n = parseFloat(entry.total);
+        return sum + (isNaN(n) ? 0 : n);
+      }, 0);
       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
 
-      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name, vendorPhone: vendor.phone, products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount };
+      // Default any possibly-missing vendor fields to '' — Firebase rejects the whole
+      // update if any value is `undefined` (e.g. an older vendor record with no phone).
+      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name || '', vendorPhone: vendor.phone || '', products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
@@ -1075,7 +1081,10 @@ const AdminPage = ({ handleSignOut }) => {
       await update(ref(db), updates);
       toast.success(`Order for ${user.name} assigned to ${vendor.name}.`);
       setAssignments(prev => ({ ...prev, [mobile]: '' }));
-    } catch (error) { toast.error('Group assignment failed.'); }
+    } catch (error) {
+      console.error('Group assignment failed:', error);
+      toast.error(`Assignment failed: ${error?.message || 'Please try again.'}`);
+    }
     finally { setProcessingId(null); }
   };
 
