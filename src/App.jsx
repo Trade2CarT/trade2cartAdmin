@@ -1052,7 +1052,12 @@ const AdminPage = ({ handleSignOut }) => {
     if (!vendorId) return toast.info('Please select a vendor first.');
     setProcessingId(mobile);
     const vendor = vendors.find(v => v.id === vendorId);
-    const entriesToAssign = wasteEntries.filter(w => w.mobile === mobile && !w.isAssigned);
+    // Exclude already-Processed entries: completing an order leaves Processed
+    // wasteEntry records that may lack `isAssigned`. Without the status check they
+    // leak back into this list, and the atomic update below tries to write
+    // `isAssigned` onto a completed record — which the DB rules reject, failing the
+    // WHOLE assignment with "permission denied" on the 2nd+ order for the same user.
+    const entriesToAssign = wasteEntries.filter(w => w.mobile === mobile && !w.isAssigned && w.status !== 'Processed');
     const user = users.find(u => (u.phone || u.phoneNumber) === mobile);
     if (!vendor || !user || entriesToAssign.length === 0) {
       toast.error('Could not find all necessary data for assignment.');
