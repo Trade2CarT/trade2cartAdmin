@@ -125,6 +125,7 @@ const ADMIN_TABS = [
   { id: 'items', label: 'Manage Items' },
   { id: 'billing', label: 'Billing' },
   { id: 'vendor-billing', label: 'Vendor Billing' },
+  { id: 'support', label: 'Support' },
 ];
 
 const AdminSidebar = ({ activeTab, onTab, onSignOut }) => (
@@ -242,6 +243,91 @@ const UserManagementContent = ({ users, toggleUserStatus, openDeleteModal, proce
     </div>
   </div>
 );
+
+// --- Support Desk: customer & vendor concerns raised from the apps ---
+const SupportContent = ({ queries, onSetStatus, openDeleteModal, processingId }) => {
+  const sorted = useMemo(() => {
+    return [...queries].sort((a, b) => {
+      const aResolved = a.status === 'resolved';
+      const bResolved = b.status === 'resolved';
+      if (aResolved !== bResolved) return aResolved ? 1 : -1; // open tickets first
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0); // newest first
+    });
+  }, [queries]);
+
+  const openCount = queries.filter(q => q.status !== 'resolved').length;
+
+  return (
+    <div>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Support Desk</h2>
+      <p className="text-sm text-gray-500 font-medium mb-6">
+        Concerns raised by customers and vendors from their apps.
+        {openCount > 0 && <span className="ml-1 text-red-600 font-bold">{openCount} open</span>}
+      </p>
+
+      {sorted.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-500 font-bold text-lg">
+          No support tickets yet.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {sorted.map(q => {
+            const name = q.name || q.vendorName || q.customerName || 'Unknown';
+            const phone = q.phone || q.vendorPhone || q.customerPhone || '—';
+            const role = q.role || (q.vendorId ? 'vendor' : 'user');
+            const isVendor = role === 'vendor';
+            const resolved = q.status === 'resolved';
+            const when = q.createdAt ? new Date(q.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+            return (
+              <div key={q.id} className={`bg-white rounded-xl shadow-sm border p-5 ${resolved ? 'border-gray-100 opacity-75' : 'border-red-100'}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar name={name} size={40} />
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{name}</p>
+                      <p className="text-xs text-gray-500 font-semibold">{phone}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border ${isVendor ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                      {isVendor ? 'Vendor' : 'Customer'}
+                    </span>
+                    <span className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border ${resolved ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                      {resolved ? 'Resolved' : 'Open'}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-800 font-medium whitespace-pre-wrap bg-gray-50 border border-gray-100 rounded-lg p-3">{q.message || '(no message)'}</p>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+                  <p className="text-xs text-gray-400 font-semibold">{when}</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onSetStatus(q, resolved ? 'open' : 'resolved')}
+                      disabled={processingId === q.id}
+                      className={`px-4 py-2 text-xs font-bold text-white rounded-lg disabled:bg-gray-400 shadow-sm ${resolved ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                      {processingId === q.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : (resolved ? 'Reopen' : 'Mark Resolved')}
+                    </button>
+                    <button
+                      onClick={() => openDeleteModal(q)}
+                      disabled={processingId === q.id}
+                      className="p-2 text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 disabled:bg-gray-200 shadow-sm"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelectedImage, processingId }) => {
   if (!vendor) return null;
@@ -844,6 +930,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [allAssignments, setAllAssignments] = useState([]);
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
+  const [queries, setQueries] = useState([]);
 
   // Item Management State
   const [assignments, setAssignments] = useState({});
@@ -861,6 +948,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [userToDelete, setUserToDelete] = useState(null);
   const [vendorToDelete, setVendorToDelete] = useState(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
+  const [queryToDelete, setQueryToDelete] = useState(null);
   const [transferModalState, setTransferModalState] = useState({ isOpen: false, assignment: null });
 
   useEffect(() => {
@@ -868,6 +956,7 @@ const AdminPage = ({ handleSignOut }) => {
       { path: 'vendors', setter: setVendors }, { path: 'users', setter: setUsers },
       { path: 'wasteEntries', setter: setWasteEntries }, { path: 'assignments', setter: setAllAssignments },
       { path: 'items', setter: setItems }, { path: 'bills', setter: setBills },
+      { path: 'queries', setter: setQueries },
     ];
     setLoading(true);
 
@@ -1197,6 +1286,32 @@ const AdminPage = ({ handleSignOut }) => {
   };
 
 
+  const setQueryStatus = async (q, status) => {
+    setProcessingId(q.id);
+    try {
+      await update(ref(db, `queries/${q.id}`), { status });
+      toast.success(status === 'resolved' ? 'Ticket resolved.' : 'Ticket reopened.');
+    } catch {
+      toast.error('Could not update the ticket.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeleteQuery = async () => {
+    if (!queryToDelete) return;
+    setProcessingId(queryToDelete.id);
+    try {
+      await remove(ref(db, `queries/${queryToDelete.id}`));
+      toast.success('Ticket deleted.');
+    } catch {
+      toast.error('Could not delete the ticket.');
+    } finally {
+      setProcessingId(null);
+      setQueryToDelete(null);
+    }
+  };
+
   const renderContent = () => {
     if (loading) return <div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-brand-500" /></div>;
 
@@ -1208,6 +1323,7 @@ const AdminPage = ({ handleSignOut }) => {
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
       items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
+      support: <SupportContent queries={queries} onSetStatus={setQueryStatus} openDeleteModal={setQueryToDelete} processingId={processingId} />,
     };
     return contentMap[activeTab] || null;
   };
@@ -1228,6 +1344,8 @@ const AdminPage = ({ handleSignOut }) => {
       <ConfirmationModal isOpen={!!userToDelete} onClose={() => setUserToDelete(null)} onConfirm={handleDeleteUser} title="Delete User" message={`This will permanently delete the user '${userToDelete?.name}' and all their associated assignments, bills, and items. This action cannot be undone.`} />
       <ConfirmationModal isOpen={!!vendorToDelete} onClose={() => setVendorToDelete(null)} onConfirm={handleDeleteVendor} title="Delete Vendor" message={`This will permanently delete the vendor '${vendorToDelete?.name}' and all their assignments and bills. Ongoing orders will be returned to the queue. This cannot be undone.`} />
       <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={handleDeleteAssignment} title="Delete Assignment" message={`Are you sure you want to delete this assignment? The items will be returned to the assignment queue.`} />
+      <ConfirmationModal isOpen={!!queryToDelete} onClose={() => setQueryToDelete(null)} onConfirm={handleDeleteQuery} title="Delete Ticket" message={`Delete this support ticket from ${queryToDelete?.name || queryToDelete?.vendorName || 'the user'}? This cannot be undone.`} />
+
 
       <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
       {billToView && <BillModal bill={billToView} onClose={() => setBillToView(null)} />}

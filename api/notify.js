@@ -78,7 +78,7 @@ export default async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-        const { type, customerName, customerPhone, address, items, total, vendorName } = body;
+        const { type, customerName, customerPhone, address, items, total, vendorName, role, message } = body;
 
         // Recipients: comma-separated NOTIFY_TO, else the original defaults.
         const to = process.env.NOTIFY_TO || 'imran023786@gmail.com, trade2cart@gmail.com';
@@ -94,7 +94,22 @@ export default async function handler(req, res) {
         });
 
         let template;
-        if (type === 'completed') {
+        if (type === 'concern') {
+            const who = role === 'vendor' ? 'Vendor' : 'Customer';
+            template = {
+                emoji: '📩',
+                title: 'New Support Concern',
+                accent: '#dc2626',
+                intro: `A ${who.toLowerCase()} raised a concern from the app. Open the Support desk to respond and resolve it.`,
+                cta: 'Open Support Desk',
+                rows: [
+                    ['From', who],
+                    ['Name', customerName],
+                    ['Phone', customerPhone],
+                    ['Message', message],
+                ],
+            };
+        } else if (type === 'completed') {
             template = {
                 emoji: '✅',
                 title: 'Order Completed',
