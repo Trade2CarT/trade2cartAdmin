@@ -63,6 +63,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ message: 'Notification sent.' });
     } catch (error) {
         console.error('Notify error:', error);
-        return res.status(500).json({ error: 'Failed to send notification.' });
+        // TEMP DEBUG: surface the real cause + whether creds are present. Revert after diagnosing.
+        return res.status(500).json({
+            error: 'Failed to send notification.',
+            debug: String(error && error.message || error),
+            hasUser: !!process.env.EMAIL_USER,
+            hasPass: !!process.env.EMAIL_PASS,
+        });
     }
 }
