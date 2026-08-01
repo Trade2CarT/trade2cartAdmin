@@ -60,8 +60,18 @@ const firebaseObjectToArray = (snapshot) => {
 const PLATFORM_FEE = 50;
 const GST_RATE = 0.18;
 const FEE_PER_ORDER = PLATFORM_FEE * (1 + GST_RATE); // ₹59
+const PLATFORM_GSTIN = '33ABCFT1234M1Z5';
+const PLATFORM_SAC = '9985'; // Support services — confirm with CA if a different SAC applies
+const PLATFORM_ADDRESS = 'Arakkonam, Tamil Nadu, India';
 
 const formatINR = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+
+// Sequential invoice number per Indian financial year, e.g. T2C/FEE/2026-27/003
+const feeInvoiceNumber = (seq, dateString) => {
+  const d = new Date(dateString);
+  const fyStart = d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+  return `T2C/FEE/${fyStart}-${String((fyStart + 1) % 100).padStart(2, '0')}/${String(seq).padStart(3, '0')}`;
+};
 
 const isToday = (dateString) => {
   if (!dateString) return false;
@@ -831,7 +841,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
 // Mediator commission ledger: every completed order (= one bill) owes the
 // platform ₹50 + 18% GST. Dues accumulate per vendor until the admin collects,
 // then reset to zero; settlements are archived under /feeSettlements.
-const VendorFeesContent = ({ vendors, bills, openCollectModal, processingId }) => {
+const VendorFeesContent = ({ vendors, bills, settlements, openCollectModal, openInvoiceModal, processingId }) => {
   const rows = useMemo(() => {
     return vendors
       .filter(v => v.status === 'approved')
@@ -924,6 +934,139 @@ const VendorFeesContent = ({ vendors, bills, openCollectModal, processingId }) =
           </div>
         )}
       </div>
+
+      <h3 className="text-xl font-extrabold text-gray-900 mt-10 mb-4">Collection History & Invoices</h3>
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-gray-100">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[720px]">
+          <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th scope="col" className="px-6 py-4">Date</th>
+              <th scope="col" className="px-6 py-4">Invoice No</th>
+              <th scope="col" className="px-6 py-4">Vendor</th>
+              <th scope="col" className="px-6 py-4 text-center">Orders</th>
+              <th scope="col" className="px-6 py-4 text-right">Amount Collected</th>
+              <th scope="col" className="px-6 py-4 text-center">Invoice</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {[...settlements].sort((a, b) => (b.collectedAt || '').localeCompare(a.collectedAt || '')).map(s => {
+              const vendor = vendors.find(v => v.id === s.vendorId) || {};
+              return (
+                <tr key={s.id} className="bg-white hover:bg-brand-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-800">{formatDate(s.collectedAt)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-500 text-xs">{s.invoiceNo || `T2C/FEE/${s.id?.slice(-6).toUpperCase()}`}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{s.vendorName || vendor.name || 'Vendor'}</td>
+                  <td className="px-6 py-4 text-center font-extrabold text-gray-900">{s.orders}</td>
+                  <td className="px-6 py-4 text-right font-extrabold text-green-700">{formatINR(Math.round(s.total))}</td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => openInvoiceModal({ ...s, vendor })}
+                      className="inline-flex items-center justify-center px-4 py-2.5 bg-gray-800 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-gray-900 transition-colors active:scale-95"
+                    >
+                      View Invoice
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {settlements.length === 0 && (
+          <p className="p-10 text-center text-gray-400 font-bold">No collections yet. Each collection generates a GST tax invoice here.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// GST tax invoice for a platform-fee settlement. Vendors are mostly
+// unregistered (no GSTIN collected at registration), so this renders as a B2C
+// invoice; if a vendor record ever carries gstin/gst it is shown for their ITC.
+const FeeInvoiceModal = ({ settlement, onClose }) => {
+  if (!settlement) return null;
+  const { vendor = {}, orders, base, gst, total, collectedAt, invoiceNo } = settlement;
+  const cgst = gst / 2;
+  const vendorGstin = vendor.gstin || vendor.gst || null;
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('fee-invoice-to-print').innerHTML;
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>Tax Invoice</title>');
+    printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+    printWindow.document.write('</head><body class="p-8">');
+    printWindow.document.write(printContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-auto max-h-[90vh] flex flex-col overflow-hidden relative animate-slide-up">
+        <div id="fee-invoice-to-print" className="p-6 sm:p-10 overflow-y-auto flex-grow bg-white">
+          <div className="text-center mb-8 border-b border-gray-100 pb-8">
+            <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Tax Invoice</h3>
+            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest mt-2">Platform Service Fee</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+            <div className="bg-brand-50 p-5 rounded-xl border border-brand-100">
+              <p className="font-extrabold text-gray-400 uppercase text-[10px] tracking-widest mb-3">Supplier:</p>
+              <p className="font-extrabold text-xl text-gray-900">Trade2Cart</p>
+              <p className="text-gray-600 font-medium text-sm mt-2">{PLATFORM_ADDRESS}</p>
+              <p className="text-gray-800 font-bold text-sm mt-2">GSTIN: {PLATFORM_GSTIN}</p>
+              <p className="text-gray-600 font-medium text-sm mt-1">SAC: {PLATFORM_SAC}</p>
+            </div>
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-100">
+              <p className="font-extrabold text-gray-400 uppercase text-[10px] tracking-widest mb-3">Billed To (Vendor):</p>
+              <p className="font-extrabold text-xl text-gray-900">{vendor.name || settlement.vendorName || 'Vendor'}</p>
+              <p className="text-gray-600 font-medium text-sm mt-2">{vendor.address || vendor.location || ''}</p>
+              <p className="text-gray-800 font-bold text-sm mt-2 flex items-center gap-2"><PhoneIcon /> {vendor.phone || settlement.vendorPhone || '—'}</p>
+              <p className="text-gray-600 font-medium text-sm mt-1">GSTIN: {vendorGstin || 'Unregistered'}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-6 mb-8 text-sm font-bold text-gray-700">
+            <p>Invoice No: <span className="text-gray-900">{invoiceNo || `T2C/FEE/${settlement.id?.slice(-6).toUpperCase()}`}</span></p>
+            <p>Date: <span className="text-gray-900">{formatDate(collectedAt)}</span></p>
+            <p>Place of Supply: <span className="text-gray-900">Tamil Nadu (33)</span></p>
+            <p>Reverse Charge: <span className="text-gray-900">No</span></p>
+          </div>
+
+          <table className="w-full text-sm text-left mb-8">
+            <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3">Description</th>
+                <th className="px-4 py-3 text-center">SAC</th>
+                <th className="px-4 py-3 text-center">Qty</th>
+                <th className="px-4 py-3 text-right">Rate</th>
+                <th className="px-4 py-3 text-right">Taxable Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-gray-100">
+                <td className="px-4 py-4 font-bold text-gray-900">Platform service fee — mediation of scrap pickup orders ({orders} completed order{orders > 1 ? 's' : ''})</td>
+                <td className="px-4 py-4 text-center font-bold">{PLATFORM_SAC}</td>
+                <td className="px-4 py-4 text-center font-bold">{orders}</td>
+                <td className="px-4 py-4 text-right font-bold">{formatINR(PLATFORM_FEE)}</td>
+                <td className="px-4 py-4 text-right font-bold">{formatINR(base)}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr><td colSpan="4" className="px-4 py-2 text-right font-bold text-gray-500">CGST @ 9%</td><td className="px-4 py-2 text-right font-bold">₹{cgst.toFixed(2)}</td></tr>
+              <tr><td colSpan="4" className="px-4 py-2 text-right font-bold text-gray-500">SGST @ 9%</td><td className="px-4 py-2 text-right font-bold">₹{cgst.toFixed(2)}</td></tr>
+              <tr className="border-t-2 border-gray-200"><td colSpan="4" className="px-4 py-3 text-right font-extrabold text-gray-900 text-base">Total (Rounded)</td><td className="px-4 py-3 text-right font-extrabold text-green-700 text-lg">{formatINR(Math.round(total))}</td></tr>
+            </tfoot>
+          </table>
+
+          <p className="text-xs text-gray-400 font-medium">This is a computer-generated invoice for the platform service fee charged by Trade2Cart (mediator) to the vendor for completed pickup orders. E. & O.E.</p>
+        </div>
+
+        <div className="p-5 sm:px-8 sm:py-5 bg-gray-50 border-t border-gray-200 flex justify-end gap-4 flex-shrink-0">
+          <button onClick={onClose} className="px-6 py-3 bg-white border border-gray-300 text-gray-800 font-bold rounded-xl hover:bg-gray-100 transition-colors shadow-sm">Close Window</button>
+          <button onClick={handlePrint} className="px-6 py-3 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-colors flex items-center gap-2 shadow-md"><Printer className="w-5 h-5" /> Print Invoice</button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -976,10 +1119,16 @@ const GstReportContent = ({ vendors, bills }) => {
   }), { orders: 0, taxable: 0, cgst: 0, sgst: 0, totalGst: 0, invoiceTotal: 0 });
 
   const downloadCsv = () => {
-    const header = ['Vendor Name', 'Phone', 'Completed Orders', 'Taxable Value (INR)', 'CGST 9% (INR)', 'SGST 9% (INR)', 'Total GST (INR)', 'Invoice Total (INR)'];
-    const dataRows = rows.map(r => [r.name, r.phone, r.orders, r.taxable.toFixed(2), r.cgst.toFixed(2), r.sgst.toFixed(2), r.totalGst.toFixed(2), r.invoiceTotal.toFixed(2)]);
-    const totalRow = ['TOTAL', '', totals.orders, totals.taxable.toFixed(2), totals.cgst.toFixed(2), totals.sgst.toFixed(2), totals.totalGst.toFixed(2), totals.invoiceTotal.toFixed(2)];
-    const csv = [header, ...dataRows, totalRow]
+    const meta = [
+      ['Trade2Cart — GST Report', monthLabel(selectedMonth)],
+      ['GSTIN', PLATFORM_GSTIN],
+      ['Place of Supply', 'Tamil Nadu (33)'],
+      [],
+    ];
+    const header = ['Vendor Name', 'Phone', 'SAC', 'Completed Orders', 'Taxable Value (INR)', 'CGST 9% (INR)', 'SGST 9% (INR)', 'Total GST (INR)', 'Invoice Total (INR)'];
+    const dataRows = rows.map(r => [r.name, r.phone, PLATFORM_SAC, r.orders, r.taxable.toFixed(2), r.cgst.toFixed(2), r.sgst.toFixed(2), r.totalGst.toFixed(2), r.invoiceTotal.toFixed(2)]);
+    const totalRow = ['TOTAL', '', '', totals.orders, totals.taxable.toFixed(2), totals.cgst.toFixed(2), totals.sgst.toFixed(2), totals.totalGst.toFixed(2), totals.invoiceTotal.toFixed(2)];
+    const csv = [...meta, header, ...dataRows, totalRow]
       .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
       .join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -1196,6 +1345,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [items, setItems] = useState([]);
   const [bills, setBills] = useState([]);
   const [queries, setQueries] = useState([]);
+  const [feeSettlements, setFeeSettlements] = useState([]);
 
   // Item Management State
   const [assignments, setAssignments] = useState({});
@@ -1215,6 +1365,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [queryToDelete, setQueryToDelete] = useState(null);
   const [feeToCollect, setFeeToCollect] = useState(null);
+  const [feeInvoiceToView, setFeeInvoiceToView] = useState(null);
   const [transferModalState, setTransferModalState] = useState({ isOpen: false, assignment: null });
 
   useEffect(() => {
@@ -1223,6 +1374,7 @@ const AdminPage = ({ handleSignOut }) => {
       { path: 'wasteEntries', setter: setWasteEntries }, { path: 'assignments', setter: setAllAssignments },
       { path: 'items', setter: setItems }, { path: 'bills', setter: setBills },
       { path: 'queries', setter: setQueries },
+      { path: 'feeSettlements', setter: setFeeSettlements },
     ];
     setLoading(true);
 
@@ -1599,6 +1751,9 @@ const AdminPage = ({ handleSignOut }) => {
         gst,
         total,
         collectedAt: now,
+        invoiceNo: feeInvoiceNumber(feeSettlements.length + 1, now),
+        sac: PLATFORM_SAC,
+        gstin: PLATFORM_GSTIN,
       };
       await update(ref(db), updates);
       toast.success(`Collected ${formatINR(total)} from '${vendor.name || 'vendor'}' for ${dueCount} order${dueCount > 1 ? 's' : ''}.`);
@@ -1621,7 +1776,7 @@ const AdminPage = ({ handleSignOut }) => {
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
       items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
-      fees: <VendorFeesContent vendors={vendors} bills={bills} openCollectModal={setFeeToCollect} processingId={processingId} />,
+      fees: <VendorFeesContent vendors={vendors} bills={bills} settlements={feeSettlements} openCollectModal={setFeeToCollect} openInvoiceModal={setFeeInvoiceToView} processingId={processingId} />,
       gst: <GstReportContent vendors={vendors} bills={bills} />,
       support: <SupportContent queries={queries} onSetStatus={setQueryStatus} openDeleteModal={setQueryToDelete} processingId={processingId} />,
     };
@@ -1650,6 +1805,7 @@ const AdminPage = ({ handleSignOut }) => {
 
       <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
       {billToView && <BillModal bill={billToView} onClose={() => setBillToView(null)} />}
+      {feeInvoiceToView && <FeeInvoiceModal settlement={feeInvoiceToView} onClose={() => setFeeInvoiceToView(null)} />}
       {vendorToView && <VendorDetailModal vendor={vendorToView} onClose={() => setVendorToView(null)} onUpdateStatus={updateVendorStatus} onDelete={setVendorToDelete} setSelectedImage={setSelectedImage} processingId={processingId} />}
       <TransferOrderModal isOpen={transferModalState.isOpen} onClose={() => setTransferModalState({ isOpen: false, assignment: null })} onConfirm={handleTransferOrder} assignment={transferModalState.assignment} vendors={approvedVendors} processingId={processingId} />
     </div>
