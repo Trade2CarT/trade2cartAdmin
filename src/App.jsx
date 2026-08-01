@@ -56,6 +56,13 @@ const firebaseObjectToArray = (snapshot) => {
   return data ? Object.keys(data).map(key => ({ id: key, ...data[key] })).sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0)) : [];
 };
 
+// Mediator platform fee charged to the vendor per completed order.
+const PLATFORM_FEE = 50;
+const GST_RATE = 0.18;
+const FEE_PER_ORDER = PLATFORM_FEE * (1 + GST_RATE); // ₹59
+
+const formatINR = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+
 const isToday = (dateString) => {
   if (!dateString) return false;
   const date = new Date(dateString);
@@ -125,6 +132,7 @@ const ADMIN_TABS = [
   { id: 'items', label: 'Manage Items' },
   { id: 'billing', label: 'Billing' },
   { id: 'vendor-billing', label: 'Vendor Billing' },
+  { id: 'fees', label: 'Vendor Fees' },
   { id: 'support', label: 'Support' },
 ];
 
@@ -766,7 +774,10 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sortedBills.map(bill => {
-              const user = users.find(u => (u.phone || u.phoneNumber) === bill.mobile) || {};
+              const user = users.find(u =>
+                u.id === (bill.userID || bill.userId) ||
+                (bill.mobile && (u.phone || u.phoneNumber) === bill.mobile)
+              ) || {};
               const vendor = vendors.find(v => v.id === bill.vendorID) || {};
 
               const safeTotalNumber = parseFloat(bill.totalBill);
@@ -779,7 +790,7 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-extrabold text-gray-900 text-base">{user.name || 'Unknown User'}</div>
-                    <div className="text-xs font-bold text-gray-500 mt-0.5">{bill.mobile || 'No Phone'}</div>
+                    <div className="text-xs font-bold text-gray-500 mt-0.5">{bill.mobile || user.phone || user.phoneNumber || 'No Phone'}</div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-800 font-bold text-xs border border-purple-200">
@@ -809,6 +820,106 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
             <Package className="w-16 h-16 text-gray-200 mb-4" />
             <p className="text-gray-500 font-extrabold text-lg">No completed bills found.</p>
             <p className="text-gray-400 font-medium text-sm mt-1">Bills will appear here once vendors complete a pickup.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Mediator commission ledger: every completed order (= one bill) owes the
+// platform ₹50 + 18% GST. Dues accumulate per vendor until the admin collects,
+// then reset to zero; settlements are archived under /feeSettlements.
+const VendorFeesContent = ({ vendors, bills, openCollectModal, processingId }) => {
+  const rows = useMemo(() => {
+    return vendors
+      .filter(v => v.status === 'approved')
+      .map(vendor => {
+        const vendorBills = bills.filter(b => b.vendorID === vendor.id);
+        const dueBills = vendorBills.filter(b => !b.platformFeePaid);
+        const collectedBills = vendorBills.filter(b => b.platformFeePaid);
+        const base = dueBills.length * PLATFORM_FEE;
+        const gst = base * GST_RATE;
+        const lastCollectedAt = collectedBills.reduce((max, b) =>
+          b.platformFeeSettledAt && b.platformFeeSettledAt > (max || '') ? b.platformFeeSettledAt : max, null);
+        return {
+          vendor, dueBills, dueCount: dueBills.length, base, gst,
+          total: base + gst,
+          collectedTotal: collectedBills.length * FEE_PER_ORDER,
+          lastCollectedAt,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+  }, [vendors, bills]);
+
+  const totalDue = rows.reduce((s, r) => s + r.total, 0);
+  const totalDueOrders = rows.reduce((s, r) => s + r.dueCount, 0);
+  const totalCollected = rows.reduce((s, r) => s + r.collectedTotal, 0);
+
+  return (
+    <div>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Vendor Fees</h2>
+      <p className="text-sm text-gray-500 font-medium mb-6">Platform charge of {formatINR(PLATFORM_FEE)} + 18% GST = {formatINR(FEE_PER_ORDER)} per completed order. Collect from a vendor to reset their due balance.</p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <DashboardCard title="Total Due" value={formatINR(totalDue)} icon={<Clock className="w-6 h-6 text-white" />} color="bg-yellow-500" />
+        <DashboardCard title="Orders Pending Fee" value={totalDueOrders} icon={<Package className="w-6 h-6 text-white" />} color="bg-accent-500" />
+        <DashboardCard title="Collected All-Time" value={formatINR(totalCollected)} icon={<CheckCircle className="w-6 h-6 text-white" />} color="bg-green-500" />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-gray-100">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[860px]">
+          <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th scope="col" className="px-6 py-4">Vendor</th>
+              <th scope="col" className="px-6 py-4 text-center">Completed Orders (Due)</th>
+              <th scope="col" className="px-6 py-4 text-right">Base</th>
+              <th scope="col" className="px-6 py-4 text-right">GST (18%)</th>
+              <th scope="col" className="px-6 py-4 text-right">Total Due</th>
+              <th scope="col" className="px-6 py-4">Last Collected</th>
+              <th scope="col" className="px-6 py-4 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map(({ vendor, dueBills, dueCount, base, gst, total, lastCollectedAt }) => (
+              <tr key={vendor.id} className="bg-white hover:bg-brand-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-3">
+                    <Avatar src={vendorPhotoUrl(vendor)} name={vendor.name || '#'} size={40} />
+                    <div>
+                      <p className="font-bold text-gray-900">{vendor.name || 'Unknown Vendor'}</p>
+                      <p className="text-xs text-gray-500 font-semibold">{vendor.phone || '—'}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-center font-extrabold text-gray-900">{dueCount}</td>
+                <td className="px-6 py-4 text-right font-bold">{formatINR(base)}</td>
+                <td className="px-6 py-4 text-right font-bold">{formatINR(gst)}</td>
+                <td className="px-6 py-4 text-right">
+                  <span className={`font-extrabold text-base ${dueCount > 0 ? 'text-red-600' : 'text-gray-300'}`}>{formatINR(total)}</span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold">{lastCollectedAt ? formatDate(lastCollectedAt) : <span className="text-gray-300">Never</span>}</td>
+                <td className="px-6 py-4 text-center">
+                  {dueCount > 0 ? (
+                    <button
+                      onClick={() => openCollectModal({ vendor, dueBills, dueCount, base, gst, total })}
+                      disabled={processingId === vendor.id}
+                      className="inline-flex items-center justify-center px-4 py-2.5 bg-green-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-green-700 transition-colors active:scale-95 disabled:bg-gray-300"
+                    >
+                      {processingId === vendor.id ? 'Saving…' : `Collect ${formatINR(total)}`}
+                    </button>
+                  ) : (
+                    <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-green-50 text-green-700 border border-green-200">Settled</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <div className="p-16 text-center flex flex-col items-center">
+            <Truck className="w-16 h-16 text-gray-200 mb-4" />
+            <p className="text-gray-500 font-extrabold text-lg">No approved vendors yet.</p>
           </div>
         )}
       </div>
@@ -949,6 +1060,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [vendorToDelete, setVendorToDelete] = useState(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [queryToDelete, setQueryToDelete] = useState(null);
+  const [feeToCollect, setFeeToCollect] = useState(null);
   const [transferModalState, setTransferModalState] = useState({ isOpen: false, assignment: null });
 
   useEffect(() => {
@@ -1312,6 +1424,38 @@ const AdminPage = ({ handleSignOut }) => {
     }
   };
 
+  const handleCollectFees = async () => {
+    if (!feeToCollect) return;
+    const { vendor, dueBills, dueCount, base, gst, total } = feeToCollect;
+    setProcessingId(vendor.id);
+    try {
+      const now = new Date().toISOString();
+      const updates = {};
+      dueBills.forEach(b => {
+        updates[`bills/${b.id}/platformFeePaid`] = true;
+        updates[`bills/${b.id}/platformFeeSettledAt`] = now;
+      });
+      const settlementKey = push(ref(db, 'feeSettlements')).key;
+      updates[`feeSettlements/${settlementKey}`] = {
+        vendorId: vendor.id,
+        vendorName: vendor.name || '',
+        vendorPhone: vendor.phone || '',
+        orders: dueCount,
+        base,
+        gst,
+        total,
+        collectedAt: now,
+      };
+      await update(ref(db), updates);
+      toast.success(`Collected ${formatINR(total)} from '${vendor.name || 'vendor'}' for ${dueCount} order${dueCount > 1 ? 's' : ''}.`);
+    } catch {
+      toast.error('Could not record the collection. Please try again.');
+    } finally {
+      setProcessingId(null);
+      setFeeToCollect(null);
+    }
+  };
+
   const renderContent = () => {
     if (loading) return <div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-brand-500" /></div>;
 
@@ -1323,6 +1467,7 @@ const AdminPage = ({ handleSignOut }) => {
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
       items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
+      fees: <VendorFeesContent vendors={vendors} bills={bills} openCollectModal={setFeeToCollect} processingId={processingId} />,
       support: <SupportContent queries={queries} onSetStatus={setQueryStatus} openDeleteModal={setQueryToDelete} processingId={processingId} />,
     };
     return contentMap[activeTab] || null;
@@ -1345,6 +1490,7 @@ const AdminPage = ({ handleSignOut }) => {
       <ConfirmationModal isOpen={!!vendorToDelete} onClose={() => setVendorToDelete(null)} onConfirm={handleDeleteVendor} title="Delete Vendor" message={`This will permanently delete the vendor '${vendorToDelete?.name}' and all their assignments and bills. Ongoing orders will be returned to the queue. This cannot be undone.`} />
       <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={handleDeleteAssignment} title="Delete Assignment" message={`Are you sure you want to delete this assignment? The items will be returned to the assignment queue.`} />
       <ConfirmationModal isOpen={!!queryToDelete} onClose={() => setQueryToDelete(null)} onConfirm={handleDeleteQuery} title="Delete Ticket" message={`Delete this support ticket from ${queryToDelete?.name || queryToDelete?.vendorName || 'the user'}? This cannot be undone.`} />
+      <ConfirmationModal isOpen={!!feeToCollect} onClose={() => setFeeToCollect(null)} onConfirm={handleCollectFees} title="Collect Platform Fee" message={`Collect ${formatINR(feeToCollect?.total)} from '${feeToCollect?.vendor?.name || 'this vendor'}'? This covers ${feeToCollect?.dueCount} completed order${feeToCollect?.dueCount > 1 ? 's' : ''} × ${formatINR(FEE_PER_ORDER)} (${formatINR(PLATFORM_FEE)} + 18% GST). Their due balance will reset to zero.`} />
 
 
       <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
