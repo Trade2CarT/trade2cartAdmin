@@ -133,6 +133,7 @@ const ADMIN_TABS = [
   { id: 'billing', label: 'Billing' },
   { id: 'vendor-billing', label: 'Vendor Billing' },
   { id: 'fees', label: 'Vendor Fees' },
+  { id: 'gst', label: 'GST Report' },
   { id: 'support', label: 'Support' },
 ];
 
@@ -927,6 +928,159 @@ const VendorFeesContent = ({ vendors, bills, openCollectModal, processingId }) =
   );
 };
 
+// Month-wise GST filing report. Liability follows the month the order was
+// COMPLETED (bill createdAt), not when the fee was collected, so this reads
+// straight from bills and ignores platformFeePaid for the amounts.
+const GstReportContent = ({ vendors, bills }) => {
+  const months = useMemo(() => {
+    const set = new Set(bills.filter(b => b.createdAt && b.vendorID).map(b => String(b.createdAt).slice(0, 7)));
+    return [...set].sort().reverse();
+  }, [bills]);
+
+  const [month, setMonth] = useState('');
+  const selectedMonth = month || months[0] || '';
+
+  const monthLabel = (m) => m ? new Date(`${m}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '';
+
+  const CGST_PER_ORDER = PLATFORM_FEE * (GST_RATE / 2); // ₹4.50
+  const rows = useMemo(() => {
+    if (!selectedMonth) return [];
+    const monthBills = bills.filter(b => b.vendorID && String(b.createdAt || '').slice(0, 7) === selectedMonth);
+    const byVendor = {};
+    monthBills.forEach(b => {
+      (byVendor[b.vendorID] = byVendor[b.vendorID] || []).push(b);
+    });
+    return Object.entries(byVendor).map(([vendorId, vBills]) => {
+      const vendor = vendors.find(v => v.id === vendorId) || {};
+      const orders = vBills.length;
+      const taxable = orders * PLATFORM_FEE;
+      const cgst = orders * CGST_PER_ORDER;
+      return {
+        vendorId,
+        name: vendor.name || 'Unknown Vendor',
+        phone: vendor.phone || '',
+        orders,
+        taxable,
+        cgst,
+        sgst: cgst,
+        totalGst: cgst * 2,
+        invoiceTotal: taxable + cgst * 2,
+        collected: vBills.filter(b => b.platformFeePaid).length,
+      };
+    }).sort((a, b) => b.orders - a.orders);
+  }, [bills, vendors, selectedMonth]);
+
+  const totals = rows.reduce((t, r) => ({
+    orders: t.orders + r.orders, taxable: t.taxable + r.taxable, cgst: t.cgst + r.cgst,
+    sgst: t.sgst + r.sgst, totalGst: t.totalGst + r.totalGst, invoiceTotal: t.invoiceTotal + r.invoiceTotal,
+  }), { orders: 0, taxable: 0, cgst: 0, sgst: 0, totalGst: 0, invoiceTotal: 0 });
+
+  const downloadCsv = () => {
+    const header = ['Vendor Name', 'Phone', 'Completed Orders', 'Taxable Value (INR)', 'CGST 9% (INR)', 'SGST 9% (INR)', 'Total GST (INR)', 'Invoice Total (INR)'];
+    const dataRows = rows.map(r => [r.name, r.phone, r.orders, r.taxable.toFixed(2), r.cgst.toFixed(2), r.sgst.toFixed(2), r.totalGst.toFixed(2), r.invoiceTotal.toFixed(2)]);
+    const totalRow = ['TOTAL', '', totals.orders, totals.taxable.toFixed(2), totals.cgst.toFixed(2), totals.sgst.toFixed(2), totals.totalGst.toFixed(2), totals.invoiceTotal.toFixed(2)];
+    const csv = [header, ...dataRows, totalRow]
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trade2cart-gst-report-${selectedMonth}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <h2 className="text-2xl font-extrabold text-gray-900 mb-1">GST Report</h2>
+      <p className="text-sm text-gray-500 font-medium mb-6">Platform-fee GST per month for filing: {formatINR(PLATFORM_FEE)} taxable + 9% CGST + 9% SGST per completed order. Reported for the month the order was completed, regardless of collection status.</p>
+
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+        <select
+          value={selectedMonth}
+          onChange={(e) => setMonth(e.target.value)}
+          className="px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 focus:ring-2 focus:ring-brand-500 outline-none"
+        >
+          {months.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
+        </select>
+        <button
+          onClick={downloadCsv}
+          disabled={rows.length === 0}
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-brand-600 text-white font-bold text-sm rounded-xl shadow-md hover:bg-brand-700 transition-colors active:scale-95 disabled:bg-gray-300"
+        >
+          <Printer className="w-4 h-4" /> Download CSV Report
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+        <DashboardCard title="Taxable Value" value={formatINR(totals.taxable)} icon={<Package className="w-6 h-6 text-white" />} color="bg-accent-500" />
+        <DashboardCard title="Total GST (18%)" value={formatINR(totals.totalGst)} icon={<AlertTriangle className="w-6 h-6 text-white" />} color="bg-yellow-500" />
+        <DashboardCard title="CGST / SGST Each" value={formatINR(totals.cgst)} icon={<CheckCircle className="w-6 h-6 text-white" />} color="bg-green-500" />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto border border-gray-100">
+        <table className="w-full text-sm text-left text-gray-500 min-w-[900px]">
+          <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th scope="col" className="px-6 py-4">Vendor</th>
+              <th scope="col" className="px-6 py-4 text-center">Orders</th>
+              <th scope="col" className="px-6 py-4 text-right">Taxable Value</th>
+              <th scope="col" className="px-6 py-4 text-right">CGST (9%)</th>
+              <th scope="col" className="px-6 py-4 text-right">SGST (9%)</th>
+              <th scope="col" className="px-6 py-4 text-right">Total GST</th>
+              <th scope="col" className="px-6 py-4 text-right">Invoice Total</th>
+              <th scope="col" className="px-6 py-4 text-center">Fee Collected</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map(r => (
+              <tr key={r.vendorId} className="bg-white hover:bg-brand-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <p className="font-bold text-gray-900">{r.name}</p>
+                  <p className="text-xs text-gray-500 font-semibold">{r.phone || '—'}</p>
+                </td>
+                <td className="px-6 py-4 text-center font-extrabold text-gray-900">{r.orders}</td>
+                <td className="px-6 py-4 text-right font-bold">{formatINR(r.taxable)}</td>
+                <td className="px-6 py-4 text-right font-bold">{formatINR(r.cgst)}</td>
+                <td className="px-6 py-4 text-right font-bold">{formatINR(r.sgst)}</td>
+                <td className="px-6 py-4 text-right font-extrabold text-gray-900">{formatINR(r.totalGst)}</td>
+                <td className="px-6 py-4 text-right font-extrabold text-green-700">{formatINR(r.invoiceTotal)}</td>
+                <td className="px-6 py-4 text-center">
+                  <span className={`px-3 py-1.5 text-xs font-bold rounded-lg border ${r.collected === r.orders ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+                    {r.collected}/{r.orders}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+              <tr className="font-extrabold text-gray-900">
+                <td className="px-6 py-4">TOTAL</td>
+                <td className="px-6 py-4 text-center">{totals.orders}</td>
+                <td className="px-6 py-4 text-right">{formatINR(totals.taxable)}</td>
+                <td className="px-6 py-4 text-right">{formatINR(totals.cgst)}</td>
+                <td className="px-6 py-4 text-right">{formatINR(totals.sgst)}</td>
+                <td className="px-6 py-4 text-right">{formatINR(totals.totalGst)}</td>
+                <td className="px-6 py-4 text-right text-green-700">{formatINR(totals.invoiceTotal)}</td>
+                <td className="px-6 py-4"></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+        {rows.length === 0 && (
+          <div className="p-16 text-center flex flex-col items-center">
+            <Package className="w-16 h-16 text-gray-200 mb-4" />
+            <p className="text-gray-500 font-extrabold text-lg">No completed orders {selectedMonth ? `in ${monthLabel(selectedMonth)}` : 'yet'}.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const TransferOrderModal = ({ isOpen, onClose, onConfirm, assignment, vendors, processingId }) => {
   const [newVendorId, setNewVendorId] = useState('');
   if (!isOpen) return null;
@@ -1468,6 +1622,7 @@ const AdminPage = ({ handleSignOut }) => {
       items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
       fees: <VendorFeesContent vendors={vendors} bills={bills} openCollectModal={setFeeToCollect} processingId={processingId} />,
+      gst: <GstReportContent vendors={vendors} bills={bills} />,
       support: <SupportContent queries={queries} onSetStatus={setQueryStatus} openDeleteModal={setQueryToDelete} processingId={processingId} />,
     };
     return contentMap[activeTab] || null;
