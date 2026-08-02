@@ -1715,12 +1715,18 @@ const AdminPage = ({ handleSignOut }) => {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
 
-    if (itemToDelete.imageUrl) {
+    // "Copy Entire Menu" duplicates items that share one storage file — only
+    // delete the file when no other item still references it, and treat an
+    // already-missing file as success rather than warning.
+    const imageSharedByOthers = items.some(i => i.id !== itemToDelete.id && i.imageUrl && i.imageUrl === itemToDelete.imageUrl);
+    if (itemToDelete.imageUrl && !imageSharedByOthers) {
       const imageRef = storageRef(storage, itemToDelete.imageUrl);
       try {
         await deleteObject(imageRef);
       } catch (error) {
-        toast.warn("Could not remove the item's image from storage, but the item data will be deleted.");
+        if (error?.code !== 'storage/object-not-found') {
+          toast.warn("Could not remove the item's image from storage, but the item data will be deleted.");
+        }
       }
     }
 
