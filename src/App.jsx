@@ -598,6 +598,10 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
               <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Item Name</label>
               <input name="name" value={newItem.name} placeholder="e.g. Iron Scrap" onChange={handleInputChange} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-brand-500 focus:ring-0 outline-none" required />
             </div>
+            <div>
+              <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Item Name (Tamil) — optional</label>
+              <input name="nameTamil" value={newItem.nameTamil} placeholder="e.g. இரும்பு கழிவு" onChange={handleInputChange} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-brand-500 focus:ring-0 outline-none" />
+            </div>
             <div className="relative">
               <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-1.5">Category</label>
               <input name="category" value={newItem.category} placeholder="e.g. Metals" onChange={handleInputChange} onFocus={() => setShowCategorySuggestions(true)} onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 150)} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-brand-500 focus:ring-0 outline-none" required />
@@ -1371,7 +1375,7 @@ const AdminPage = ({ handleSignOut }) => {
 
   // Item Management State
   const [assignments, setAssignments] = useState({});
-  const [newItem, setNewItem] = useState({ name: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
+  const [newItem, setNewItem] = useState({ name: '', nameTamil: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
   const [currentItemId, setCurrentItemId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -1627,7 +1631,7 @@ const AdminPage = ({ handleSignOut }) => {
   const cancelEdit = () => {
     setIsEditing(false);
     setCurrentItemId(null);
-    setNewItem({ name: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
+    setNewItem({ name: '', nameTamil: '', minRate: '', maxRate: '', unit: '', category: '', location: '' });
     setItemImage(null);
     setImagePreview(null);
   };
@@ -1635,7 +1639,8 @@ const AdminPage = ({ handleSignOut }) => {
 
   const handleItemSubmit = async (e) => {
     e.preventDefault();
-    if (Object.values(newItem).some(val => !val)) {
+    const { nameTamil, ...requiredFields } = newItem;
+    if (Object.values(requiredFields).some(val => !val)) {
       return toast.error('Please fill out all fields.');
     }
     setProcessingId(isEditing ? currentItemId : 'add-item');
@@ -1659,6 +1664,7 @@ const AdminPage = ({ handleSignOut }) => {
 
       const itemData = {
         name: newItem.name,
+        nameTamil: newItem.nameTamil || '',
         minRate: safeMin,
         maxRate: safeMax,
         rate: safeMin,
@@ -1693,6 +1699,7 @@ const AdminPage = ({ handleSignOut }) => {
 
     setNewItem({
       name: item.name,
+      nameTamil: item.nameTamil || '',
       minRate: isNaN(parseFloat(safeMin)) ? '' : safeMin,
       maxRate: isNaN(parseFloat(safeMax)) ? '' : safeMax,
       unit: item.unit,
