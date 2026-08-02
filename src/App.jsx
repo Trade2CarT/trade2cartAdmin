@@ -66,6 +66,28 @@ const PLATFORM_ADDRESS = 'Arakkonam, Tamil Nadu, India';
 
 const formatINR = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
+// Downscale + re-encode an image in the browser before upload. Item images
+// render far smaller than 1200px anywhere in the apps, so this is visually
+// identical while ~95% smaller. Falls back to the original file on any error
+// or if compression doesn't actually shrink it.
+const compressImage = (file, maxDim = 1200, quality = 0.9) => new Promise((resolve) => {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      URL.revokeObjectURL(url);
+      resolve(blob && blob.size < file.size ? blob : file);
+    }, 'image/jpeg', quality);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+  img.src = url;
+});
+
 // Sequential invoice number per Indian financial year, e.g. T2C/FEE/2026-27/003
 const feeInvoiceNumber = (seq, dateString) => {
   const d = new Date(dateString);
@@ -1622,8 +1644,10 @@ const AdminPage = ({ handleSignOut }) => {
       let imageUrl = isEditing ? items.find(i => i.id === currentItemId)?.imageUrl || '' : '';
 
       if (itemImage) {
-        const imageRef = storageRef(storage, `item_images/${currentItemId || Date.now()}_${itemImage.name}`);
-        await uploadBytes(imageRef, itemImage);
+        const compressed = await compressImage(itemImage);
+        const baseName = itemImage.name.replace(/\.[^.]+$/, '');
+        const imageRef = storageRef(storage, `item_images/${currentItemId || Date.now()}_${baseName}.jpg`);
+        await uploadBytes(imageRef, compressed, { contentType: 'image/jpeg' });
         imageUrl = await getDownloadURL(imageRef);
       }
 
