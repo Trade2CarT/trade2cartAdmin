@@ -206,7 +206,20 @@ const AdminShell = ({ children, activeTab = 'vendor-billing', handleSignOut }) =
 };
 
 // --- Dashboard Content Components ---
-const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
+const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], setActiveTab }) => {
+  // Expansion demand: notify-me requests from cities we don't serve yet.
+  const cityDemand = useMemo(() => {
+    const groups = {};
+    cityRequests.forEach(r => {
+      const key = (r.city || '').trim().toLowerCase();
+      if (!key) return;
+      if (!groups[key]) groups[key] = { city: (r.city || '').trim(), count: 0, latest: '' };
+      groups[key].count += 1;
+      if ((r.requestedAt || '') > groups[key].latest) groups[key].latest = r.requestedAt || '';
+    });
+    return Object.values(groups).sort((a, b) => b.count - a.count);
+  }, [cityRequests]);
+
   const stats = useMemo(() => {
     // ✅ Apply the exact same safety filter here so the dashboard counts match exactly
     const unassignedEntries = wasteEntries.filter(w => !w.isAssigned && w.status !== 'Processed');
@@ -230,6 +243,34 @@ const DashboardContent = ({ users, vendors, wasteEntries, setActiveTab }) => {
         <DashboardCard title="Today's Orders" value={stats.todaysOrders} icon={<Package className="w-6 h-6 text-white" />} color="bg-accent-500" onClick={() => setActiveTab('assignment')} />
         <DashboardCard title="Active Vendors" value={stats.activeVendors} icon={<Truck className="w-6 h-6 text-white" />} color="bg-green-500" onClick={() => setActiveTab('verification')} />
         <DashboardCard title="Total Users" value={stats.totalUsers} icon={<Users className="w-6 h-6 text-white" />} color="bg-purple-500" onClick={() => setActiveTab('users')} />
+      </div>
+
+      <h3 className="text-xl font-extrabold text-gray-900 mt-10 mb-4">City Requests <span className="text-sm font-bold text-gray-400">(expansion demand from users outside your service area)</span></h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+        {cityDemand.length > 0 ? (
+          <table className="w-full text-sm text-left text-gray-500 min-w-[480px]">
+            <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th scope="col" className="px-6 py-4">City</th>
+                <th scope="col" className="px-6 py-4 text-center">Requests</th>
+                <th scope="col" className="px-6 py-4">Latest Request</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {cityDemand.map(d => (
+                <tr key={d.city.toLowerCase()} className="bg-white hover:bg-brand-50 transition-colors">
+                  <td className="px-6 py-4 font-extrabold text-gray-900 capitalize">{d.city}</td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="inline-flex px-3 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 font-black">{d.count}</span>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-gray-500">{d.latest ? formatDate(d.latest) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="p-8 text-center text-gray-400 font-bold">No requests yet. When users search an unserviced city in the app, their interest shows up here.</p>
+        )}
       </div>
     </div>
   );
@@ -1372,6 +1413,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [bills, setBills] = useState([]);
   const [queries, setQueries] = useState([]);
   const [feeSettlements, setFeeSettlements] = useState([]);
+  const [cityRequests, setCityRequests] = useState([]);
 
   // Item Management State
   const [assignments, setAssignments] = useState({});
@@ -1401,6 +1443,7 @@ const AdminPage = ({ handleSignOut }) => {
       { path: 'items', setter: setItems }, { path: 'bills', setter: setBills },
       { path: 'queries', setter: setQueries },
       { path: 'feeSettlements', setter: setFeeSettlements },
+      { path: 'cityRequests', setter: setCityRequests },
     ];
     setLoading(true);
 
@@ -1806,7 +1849,7 @@ const AdminPage = ({ handleSignOut }) => {
     if (loading) return <div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-brand-500" /></div>;
 
     const contentMap = {
-      dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} setActiveTab={setActiveTab} />,
+      dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} cityRequests={cityRequests} setActiveTab={setActiveTab} />,
       users: <UserManagementContent users={users} toggleUserStatus={toggleUserStatus} openDeleteModal={setUserToDelete} processingId={processingId} />,
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
