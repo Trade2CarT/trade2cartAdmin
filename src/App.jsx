@@ -207,16 +207,23 @@ const AdminShell = ({ children, activeTab = 'vendor-billing', handleSignOut }) =
 
 // --- Dashboard Content Components ---
 const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], setActiveTab }) => {
-  // Expansion demand: notify-me requests from cities we don't serve yet.
+  const [expandedCity, setExpandedCity] = useState(null);
+
+  // Expansion demand: notify-me requests from cities we don't serve yet,
+  // grouped by area. 'booking' source = user tried to schedule a pickup there
+  // (higher intent than a location-screen search).
   const cityDemand = useMemo(() => {
     const groups = {};
     cityRequests.forEach(r => {
       const key = (r.city || '').trim().toLowerCase();
       if (!key) return;
-      if (!groups[key]) groups[key] = { city: (r.city || '').trim(), count: 0, latest: '' };
+      if (!groups[key]) groups[key] = { city: (r.city || '').trim(), count: 0, bookingCount: 0, latest: '', requests: [] };
       groups[key].count += 1;
+      if (r.source === 'booking') groups[key].bookingCount += 1;
       if ((r.requestedAt || '') > groups[key].latest) groups[key].latest = r.requestedAt || '';
+      groups[key].requests.push(r);
     });
+    Object.values(groups).forEach(g => g.requests.sort((a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || '')));
     return Object.values(groups).sort((a, b) => b.count - a.count);
   }, [cityRequests]);
 
@@ -257,15 +264,44 @@ const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], set
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {cityDemand.map(d => (
-                <tr key={d.city.toLowerCase()} className="bg-white hover:bg-brand-50 transition-colors">
-                  <td className="px-6 py-4 font-extrabold text-gray-900 capitalize">{d.city}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-flex px-3 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 font-black">{d.count}</span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-gray-500">{d.latest ? formatDate(d.latest) : '—'}</td>
-                </tr>
-              ))}
+              {cityDemand.map(d => {
+                const cityKey = d.city.toLowerCase();
+                const isOpen = expandedCity === cityKey;
+                return (
+                  <React.Fragment key={cityKey}>
+                    <tr onClick={() => setExpandedCity(isOpen ? null : cityKey)} className="bg-white hover:bg-brand-50 transition-colors cursor-pointer">
+                      <td className="px-6 py-4 font-extrabold text-gray-900 capitalize">
+                        {d.city}
+                        {d.bookingCount > 0 && (
+                          <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-black uppercase">{d.bookingCount} tried to book</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex px-3 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 font-black">{d.count}</span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-gray-500">{d.latest ? formatDate(d.latest) : '—'} <span className="text-gray-300 text-xs ml-2">{isOpen ? '▲' : '▼'}</span></td>
+                    </tr>
+                    {isOpen && (
+                      <tr className="bg-gray-50">
+                        <td colSpan="3" className="px-6 py-3">
+                          <div className="space-y-2">
+                            {d.requests.slice(0, 10).map((r, i) => (
+                              <div key={r.id || i} className="flex flex-wrap items-center gap-3 text-xs font-bold text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                                <span className={`px-2 py-0.5 rounded-full border font-black uppercase text-[9px] ${r.source === 'booking' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{r.source === 'booking' ? 'Booking' : 'Search'}</span>
+                                <span className="text-gray-900">{r.phone || 'No phone'}</span>
+                                {r.name && <span>{r.name}</span>}
+                                {r.address && <span className="text-gray-400 truncate max-w-[280px]">{r.address}</span>}
+                                <span className="ml-auto text-gray-400">{r.requestedAt ? formatDate(r.requestedAt) : ''}</span>
+                              </div>
+                            ))}
+                            {d.requests.length > 10 && <p className="text-[11px] font-bold text-gray-400 text-center">…and {d.requests.length - 10} more</p>}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         ) : (
