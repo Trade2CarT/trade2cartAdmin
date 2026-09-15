@@ -205,8 +205,19 @@ const AdminShell = ({ children, activeTab = 'vendor-billing', handleSignOut }) =
   );
 };
 
+// Firebase-safe key for a city name — must match cityKey() in the user app's TradePage.
+const cityKey = (name) => (name || '').trim().toLowerCase().replace(/[.#$[\]/]/g, '_');
+
+// Suggested centres for the launch cities (previously hard-coded in the user app).
+// Only a suggestion in the editor — nothing is checked until the admin saves.
+const SUGGESTED_CITY_CENTERS = {
+  arakkonam: { lat: 13.0778, lng: 79.6714 },
+  tiruttani: { lat: 13.1746, lng: 79.6117 },
+  sholinghur: { lat: 13.1176, lng: 79.42 },
+};
+
 // --- Dashboard Content Components ---
-const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], setActiveTab }) => {
+const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setActiveTab }) => {
   const [expandedCity, setExpandedCity] = useState(null);
 
   // Expansion demand: notify-me requests from cities we don't serve yet,
@@ -217,9 +228,10 @@ const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], set
     cityRequests.forEach(r => {
       const key = (r.city || '').trim().toLowerCase();
       if (!key) return;
-      if (!groups[key]) groups[key] = { city: (r.city || '').trim(), count: 0, bookingCount: 0, latest: '', requests: [] };
+      if (!groups[key]) groups[key] = { city: (r.city || '').trim(), count: 0, bookingCount: 0, vendorCount: 0, latest: '', requests: [] };
       groups[key].count += 1;
       if (r.source === 'booking') groups[key].bookingCount += 1;
+      if (r.source === 'vendor') groups[key].vendorCount += 1;
       if ((r.requestedAt || '') > groups[key].latest) groups[key].latest = r.requestedAt || '';
       groups[key].requests.push(r);
     });
@@ -252,7 +264,7 @@ const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], set
         <DashboardCard title="Total Users" value={stats.totalUsers} icon={<Users className="w-6 h-6 text-white" />} color="bg-purple-500" onClick={() => setActiveTab('users')} />
       </div>
 
-      <h3 className="text-xl font-extrabold text-gray-900 mt-10 mb-4">City Requests <span className="text-sm font-bold text-gray-400">(expansion demand from users outside your service area)</span></h3>
+      <h3 className="text-xl font-extrabold text-gray-900 mt-10 mb-4">City Requests <span className="text-sm font-bold text-gray-400">(expansion demand from users and vendors outside your service area)</span></h3>
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
         {cityDemand.length > 0 ? (
           <table className="w-full text-sm text-left text-gray-500 min-w-[480px]">
@@ -275,6 +287,9 @@ const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], set
                         {d.bookingCount > 0 && (
                           <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-black uppercase">{d.bookingCount} tried to book</span>
                         )}
+                        {d.vendorCount > 0 && (
+                          <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-700 border border-green-200 font-black uppercase">{d.vendorCount} vendor{d.vendorCount > 1 ? 's' : ''} registered</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="inline-flex px-3 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 font-black">{d.count}</span>
@@ -287,7 +302,7 @@ const DashboardContent = ({ users, vendors, wasteEntries, cityRequests = [], set
                           <div className="space-y-2">
                             {d.requests.slice(0, 10).map((r, i) => (
                               <div key={r.id || i} className="flex flex-wrap items-center gap-3 text-xs font-bold text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">
-                                <span className={`px-2 py-0.5 rounded-full border font-black uppercase text-[9px] ${r.source === 'booking' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{r.source === 'booking' ? 'Booking' : 'Search'}</span>
+                                <span className={`px-2 py-0.5 rounded-full border font-black uppercase text-[9px] ${r.source === 'booking' ? 'bg-amber-50 text-amber-700 border-amber-200' : r.source === 'vendor' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>{r.source === 'booking' ? 'Booking' : r.source === 'vendor' ? 'Vendor' : 'Search'}</span>
                                 <span className="text-gray-900">{r.phone || 'No phone'}</span>
                                 {r.name && <span>{r.name}</span>}
                                 {r.address && <span className="text-gray-400 truncate max-w-[280px]">{r.address}</span>}
@@ -465,7 +480,7 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelec
         </div>
         <div className="p-6 bg-gray-50 overflow-y-auto flex-grow">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</p><p className="font-bold text-gray-800 mt-1">{vendor.location}</p></div>
+            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</p><p className="font-bold text-gray-800 mt-1">{vendor.location}{vendor.locationCustom && <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-700 border border-green-200 font-black uppercase align-middle">New city</span>}</p></div>
             <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aadhaar</p><p className="font-bold text-gray-800 mt-1">{vendor.aadhaar}</p></div>
             <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">PAN</p><p className="font-bold text-gray-800 mt-1">{vendor.pan}</p></div>
           </div>
@@ -530,6 +545,9 @@ const VendorVerificationContent = ({ vendors, openVendorDetailModal, activeVendo
           <div className="inline-block bg-gray-50 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 border border-gray-200">
             📍 {v.location}
           </div>
+          {v.locationCustom && (
+            <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-700 border border-green-200 font-black uppercase">New city</span>
+          )}
         </button>
       ))) : (<div className="col-span-full text-center py-12 bg-white rounded-xl shadow-sm border border-gray-100"><p className="text-gray-500 font-bold">No vendors in this category.</p></div>)}
     </div>
@@ -570,6 +588,9 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
               const user = users.find(u => (u.phone || u.phoneNumber) === mobile);
               const recommendedVendors = approvedVendors.filter(v => user?.location && v.location?.toLowerCase() === user.location?.toLowerCase());
               const otherVendors = approvedVendors.filter(v => !user?.location || v.location?.toLowerCase() !== user.location?.toLowerCase());
+              // Typed-address bookings skip the service-radius check — flag them for a manual area check.
+              const gpsEntry = entries.find(e => e.exactLat != null && e.exactLng != null);
+              const pickupAddress = entries.find(e => e.address)?.address || user?.address || '';
               return (
                 <tr key={mobile} className="bg-white hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
@@ -580,6 +601,14 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
                     ) : (
                       <div className="inline-block mt-2 bg-yellow-50 text-yellow-800 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-yellow-200">⚠ Profile not found</div>
                     )}
+                    {pickupAddress && <div className="text-xs font-medium text-gray-500 mt-2 max-w-[260px] line-clamp-2">{pickupAddress}</div>}
+                    <div className="mt-2">
+                      {gpsEntry ? (
+                        <a href={`https://www.google.com/maps?q=${gpsEntry.exactLat},${gpsEntry.exactLng}`} target="_blank" rel="noopener noreferrer" className="inline-block bg-green-50 text-green-700 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-green-200 hover:bg-green-100">🗺 GPS · View map</a>
+                      ) : (
+                        <span className="inline-block bg-red-50 text-red-700 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider border border-red-200">⚠ No GPS – verify area</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
@@ -613,7 +642,101 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
   );
 };
 
-const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
+// Service-area centre per city. The user app blocks GPS bookings more than
+// 5 km from the saved centre; a city with no saved centre is not checked.
+const CityCentersCard = ({ cities, cityCenters }) => {
+  const [drafts, setDrafts] = useState({});
+  const [savingKey, setSavingKey] = useState(null);
+
+  const savedByKey = useMemo(() => Object.fromEntries(cityCenters.map(c => [c.id, c])), [cityCenters]);
+  const rows = useMemo(() => {
+    const byKey = new Map();
+    cities.forEach(city => { const key = cityKey(city); if (key && !byKey.has(key)) byKey.set(key, city.trim()); });
+    return [...byKey.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [cities]);
+
+  const baseFor = (key) => {
+    const src = savedByKey[key] || SUGGESTED_CITY_CENTERS[key];
+    return { lat: src?.lat ?? '', lng: src?.lng ?? '' };
+  };
+  const setDraft = (key, patch) => setDrafts(prev => ({ ...prev, [key]: { ...(prev[key] || baseFor(key)), ...patch } }));
+
+  const fillFromMyLocation = (key) => {
+    if (!navigator.geolocation) return toast.error('Location is not supported in this browser.');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setDraft(key, { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) }),
+      () => toast.error('Could not get your current location.'),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const save = async (key, city) => {
+    const draft = drafts[key] || baseFor(key);
+    const lat = parseFloat(draft.lat);
+    const lng = parseFloat(draft.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return toast.error('Enter a valid latitude and longitude.');
+    }
+    setSavingKey(key);
+    try {
+      await set(ref(db, `cityCenters/${key}`), { name: city, lat, lng, updatedAt: new Date().toISOString() });
+      setDrafts(prev => { const next = { ...prev }; delete next[key]; return next; });
+      toast.success(`Service centre saved for ${city}.`);
+    } catch {
+      toast.error('Could not save. Check the Firebase rules for cityCenters.');
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+      <h3 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-1">City Service Centres</h3>
+      <p className="text-xs font-bold text-gray-500 mb-4">Customers can book with GPS only within 5 km of a city's centre. Cities without a saved centre are not checked.</p>
+      {rows.length === 0 ? (
+        <p className="text-sm font-bold text-gray-400">Add an item with a location to set its centre.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left min-w-[640px]">
+            <thead className="text-[10px] text-gray-400 uppercase tracking-widest border-b border-gray-100">
+              <tr><th className="py-2 pr-3">City</th><th className="py-2 pr-3">Latitude</th><th className="py-2 pr-3">Longitude</th><th className="py-2 text-right">Actions</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {rows.map(([key, city]) => {
+                const draft = drafts[key] || baseFor(key);
+                const saved = savedByKey[key];
+                const dirty = !!drafts[key] || (!saved && SUGGESTED_CITY_CENTERS[key]);
+                const lat = parseFloat(draft.lat), lng = parseFloat(draft.lng);
+                const hasPoint = Number.isFinite(lat) && Number.isFinite(lng);
+                return (
+                  <tr key={key}>
+                    <td className="py-3 pr-3">
+                      <div className="font-extrabold text-gray-900">{city}</div>
+                      <div className={`text-[10px] font-black uppercase tracking-wider mt-0.5 ${saved ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {saved ? (drafts[key] ? 'Saved · edited' : 'Saved') : SUGGESTED_CITY_CENTERS[key] ? 'Suggested · not saved' : 'Not set'}
+                      </div>
+                    </td>
+                    <td className="py-3 pr-3"><input value={draft.lat} onChange={(e) => setDraft(key, { lat: e.target.value })} inputMode="decimal" placeholder="13.0778" className="w-full p-2 border-2 border-gray-200 rounded-lg font-bold text-gray-900 focus:border-brand-500 focus:ring-0 outline-none" /></td>
+                    <td className="py-3 pr-3"><input value={draft.lng} onChange={(e) => setDraft(key, { lng: e.target.value })} inputMode="decimal" placeholder="79.6714" className="w-full p-2 border-2 border-gray-200 rounded-lg font-bold text-gray-900 focus:border-brand-500 focus:ring-0 outline-none" /></td>
+                    <td className="py-3">
+                      <div className="flex justify-end gap-2">
+                        {hasPoint && <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="px-3 py-2 text-xs font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100">Map</a>}
+                        <button type="button" onClick={() => fillFromMyLocation(key)} className="px-3 py-2 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100">📍 My location</button>
+                        <button type="button" onClick={() => save(key, city)} disabled={savingKey === key || !dirty} className="px-4 py-2 text-xs font-extrabold text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:bg-gray-300">{savingKey === key ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Save'}</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ItemManagementContent = ({ items, cityCenters = [], newItem, setNewItem, handleInputChange, handleItemSubmit, isEditing, processingId, setProcessingId, handleEditItem, openDeleteModal, cancelEdit, itemImage, setItemImage, imagePreview, setImagePreview }) => {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
   const [showUnitSuggestions, setShowUnitSuggestions] = useState(false);
   const [newLocation, setNewLocation] = useState('');
@@ -664,6 +787,8 @@ const ItemManagementContent = ({ items, newItem, setNewItem, handleInputChange, 
           <button onClick={handleCopyLocation} disabled={processingId === 'copy-location'} className="w-full md:w-auto flex justify-center items-center px-6 py-3 font-extrabold text-white bg-gray-800 rounded-xl hover:bg-gray-900 disabled:bg-gray-400 shadow-md">{processingId === 'copy-location' ? <LoaderIcon className="w-5 h-5 animate-spin" /> : 'Copy Entire Menu'}</button>
         </div>
       </div>
+
+      <CityCentersCard cities={uniqueLocations} cityCenters={cityCenters} />
 
       <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100 mb-8 relative overflow-hidden">
         <div className={`absolute top-0 left-0 w-1.5 h-full ${isEditing ? 'bg-yellow-500' : 'bg-brand-600'}`}></div>
@@ -1450,6 +1575,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [queries, setQueries] = useState([]);
   const [feeSettlements, setFeeSettlements] = useState([]);
   const [cityRequests, setCityRequests] = useState([]);
+  const [cityCenters, setCityCenters] = useState([]);
 
   // Item Management State
   const [assignments, setAssignments] = useState({});
@@ -1480,6 +1606,7 @@ const AdminPage = ({ handleSignOut }) => {
       { path: 'queries', setter: setQueries },
       { path: 'feeSettlements', setter: setFeeSettlements },
       { path: 'cityRequests', setter: setCityRequests },
+      { path: 'cityCenters', setter: setCityCenters },
     ];
     setLoading(true);
 
@@ -1687,9 +1814,20 @@ const AdminPage = ({ handleSignOut }) => {
       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const newAssignmentRef = push(ref(db, 'assignments'));
 
+      // Snapshot the pickup location onto the order. The user profile's address /
+      // lastLat / lastLng are overwritten by every new booking, so vendors and the
+      // customer's history must read the order's own copy.
+      const gpsEntry = entriesToAssign.find(e => e.exactLat != null && e.exactLng != null);
+      const pickup = {
+        address: (gpsEntry || entriesToAssign[0]).address || user.address || '',
+        lat: gpsEntry ? Number(gpsEntry.exactLat) : null,
+        lng: gpsEntry ? Number(gpsEntry.exactLng) : null,
+        city: entriesToAssign.find(e => e.city)?.city || user.location || '',
+      };
+
       // Default any possibly-missing vendor fields to '' — Firebase rejects the whole
       // update if any value is `undefined` (e.g. an older vendor record with no phone).
-      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name || '', vendorPhone: vendor.phone || '', products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount };
+      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name || '', vendorPhone: vendor.phone || '', products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount, pickup };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
@@ -1890,7 +2028,7 @@ const AdminPage = ({ handleSignOut }) => {
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
-      items: <ItemManagementContent items={items} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
+      items: <ItemManagementContent items={items} cityCenters={cityCenters} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
       fees: <VendorFeesContent vendors={vendors} bills={bills} settlements={feeSettlements} openCollectModal={setFeeToCollect} openInvoiceModal={setFeeInvoiceToView} processingId={processingId} />,
       gst: <GstReportContent vendors={vendors} bills={bills} />,
