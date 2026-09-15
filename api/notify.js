@@ -1,7 +1,9 @@
 import nodemailer from 'nodemailer';
 
-// Single email endpoint for lifecycle events. Both the User app (on scheduling)
-// and the Vendor app (on completion) POST here with { type, ...details }.
+// Single email endpoint for lifecycle events. The User and Vendor apps POST here
+// with { type, ...details } via their utils/notify.js helper. Types:
+// user_signup, profile_updated, city_request, scheduled (User app);
+// vendor_signup, pickup_started, completed (Vendor app); concern (both).
 // Recipients come from NOTIFY_TO (comma-separated); SMTP creds from EMAIL_USER/PASS.
 
 const DASHBOARD_URL = 'https://trade2cart.trade.admin.trade2cart.in';
@@ -78,7 +80,10 @@ export default async function handler(req, res) {
 
     try {
         const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-        const { type, customerName, customerPhone, address, items, total, vendorName, role, message } = body;
+        const {
+            type, customerName, customerPhone, address, items, total, vendorName, role, message,
+            city, source, distanceKm, email, newCity,
+        } = body;
 
         // Recipients: comma-separated NOTIFY_TO, else the original defaults.
         const to = process.env.NOTIFY_TO || 'imran023786@gmail.com, trade2cart@gmail.com';
@@ -124,7 +129,83 @@ export default async function handler(req, res) {
                     ['Items', items],
                 ],
             };
-        } else {
+        } else if (type === 'user_signup') {
+            template = {
+                emoji: '👋',
+                title: 'New Customer Signed Up',
+                accent: '#7c3aed',
+                intro: 'A new customer just created a Trade2Cart account.',
+                cta: 'View Users',
+                rows: [
+                    ['Name', customerName],
+                    ['Phone', customerPhone],
+                    ['City', city],
+                ],
+            };
+        } else if (type === 'vendor_signup') {
+            template = {
+                emoji: '🧑‍🔧',
+                title: 'New Vendor Registration',
+                accent: '#ea580c',
+                intro: newCity
+                    ? `A vendor registered from ${city || 'a city'}, which you don't serve yet. Review their documents and consider adding a price list for that city.`
+                    : 'A vendor submitted their registration and documents. Review and approve them in the dashboard.',
+                cta: 'Review Vendor',
+                rows: [
+                    ['Name', customerName],
+                    ['Phone', customerPhone],
+                    ['City', newCity && city ? `${city} (new city)` : city],
+                    ['Address', address],
+                ],
+            };
+        } else if (type === 'city_request') {
+            const fromBooking = source === 'booking';
+            template = {
+                emoji: '📍',
+                title: 'New City Request',
+                accent: '#0891b2',
+                intro: fromBooking
+                    ? 'A customer tried to book a pickup outside your service area and asked you to launch there.'
+                    : "A visitor searched for an area you don't serve yet and asked to be notified.",
+                cta: 'View City Requests',
+                subjectName: city,
+                rows: [
+                    ['Area', city],
+                    ['Source', fromBooking ? `Booking blocked${distanceKm != null ? ` (~${distanceKm} km away)` : ''}` : 'Location search'],
+                    ['Name', customerName],
+                    ['Phone', customerPhone],
+                    ['Address', address],
+                ],
+            };
+        } else if (type === 'pickup_started') {
+            template = {
+                emoji: '🚚',
+                title: 'Pickup Started',
+                accent: '#0d9488',
+                intro: "A vendor verified the customer's OTP and started weighing the scrap.",
+                cta: 'View Ongoing Orders',
+                rows: [
+                    ['Customer', customerName],
+                    ['Phone', customerPhone],
+                    ['Vendor', vendorName],
+                    ['Address', address],
+                ],
+            };
+        } else if (type === 'profile_updated') {
+            template = {
+                emoji: '✏️',
+                title: 'Customer Profile Updated',
+                accent: '#4b5563',
+                intro: 'A customer updated their profile details.',
+                cta: 'View Users',
+                rows: [
+                    ['Name', customerName],
+                    ['Phone', customerPhone],
+                    ['Email', email],
+                    ['Address', address],
+                ],
+            };
+        } else if (type === 'scheduled' || !type) {
             template = {
                 emoji: '🗓️',
                 title: 'New Pickup Scheduled',
@@ -134,13 +215,17 @@ export default async function handler(req, res) {
                 rows: [
                     ['Customer', customerName],
                     ['Phone', customerPhone],
+                    ['City', city],
                     ['Address', address],
                     ['Items', items],
                 ],
             };
+        } else {
+            // Never mislabel an event as a scheduled pickup.
+            return res.status(400).json({ error: `Unknown notification type: ${type}` });
         }
 
-        const subject = `${template.emoji} ${template.title} — ${customerName || 'Customer'}`;
+        const subject = `${template.emoji} ${template.title} — ${template.subjectName || customerName || 'Customer'}`;
 
         await transporter.sendMail({
             from: `"Trade2Cart" <${process.env.EMAIL_USER}>`,
