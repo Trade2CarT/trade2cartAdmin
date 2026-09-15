@@ -1906,7 +1906,7 @@ const AdminPage = ({ handleSignOut }) => {
 
       // Default any possibly-missing vendor fields to '' — Firebase rejects the whole
       // update if any value is `undefined` (e.g. an older vendor record with no phone).
-      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name || '', vendorPhone: vendor.phone || '', products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, entryIds, totalAmount, pickup };
+      updates[`/assignments/${newAssignmentRef.key}`] = { mobile, vendorId, vendorName: vendor.name || '', vendorPhone: vendor.phone || '', products: productsSummary, assignedAt: new Date().toISOString(), status: 'assigned', userId: user.id, userName: user.name || '', entryIds, totalAmount, pickup };
       entriesToAssign.forEach(entry => { updates[`/wasteEntries/${entry.id}/isAssigned`] = true; });
       updates[`/users/${user.id}/Status`] = 'On-Schedule';
       updates[`/users/${user.id}/currentAssignmentId`] = newAssignmentRef.key;
