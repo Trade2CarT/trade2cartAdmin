@@ -216,6 +216,29 @@ const SUGGESTED_CITY_CENTERS = {
   sholinghur: { lat: 13.1176, lng: 79.42 },
 };
 
+// Pull a lat/lng out of pasted coordinates ("13.0778, 79.6714", as copied from
+// Google Maps' right-click menu) or a full Google Maps URL. Null if none found.
+const parseLatLng = (text) => {
+  let s = String(text || '');
+  try { s = decodeURIComponent(s); } catch { /* keep the raw text */ }
+  const NUM = '(-?\\d{1,3}(?:\\.\\d+)?)';
+  const patterns = [
+    new RegExp(`!3d${NUM}!4d${NUM}`),                                   // dropped-pin / place URLs (most precise)
+    new RegExp(`[?&](?:q|query|ll|destination)=${NUM},\\s*${NUM}`),     // ?q=lat,lng
+    new RegExp(`@${NUM},\\s*${NUM}`),                                   // /@lat,lng,15z (map view centre)
+    new RegExp(`^\\s*${NUM}\\s*,\\s*${NUM}\\s*$`),                      // plain "lat, lng"
+  ];
+  for (const re of patterns) {
+    const m = s.match(re);
+    if (m) {
+      const lat = Number(m[1]);
+      const lng = Number(m[2]);
+      if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+  }
+  return null;
+};
+
 // --- Dashboard Content Components ---
 const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setActiveTab }) => {
   const [expandedCity, setExpandedCity] = useState(null);
@@ -647,6 +670,8 @@ const AssignmentContent = ({ users, groupedUnassignedEntries, approvedVendors, a
 const CityCentersCard = ({ cities, cityCenters }) => {
   const [drafts, setDrafts] = useState({});
   const [savingKey, setSavingKey] = useState(null);
+  const [locatingKey, setLocatingKey] = useState(null);
+  const [pasteText, setPasteText] = useState({});
 
   const savedByKey = useMemo(() => Object.fromEntries(cityCenters.map(c => [c.id, c])), [cityCenters]);
   const rows = useMemo(() => {
@@ -661,13 +686,50 @@ const CityCentersCard = ({ cities, cityCenters }) => {
   };
   const setDraft = (key, patch) => setDrafts(prev => ({ ...prev, [key]: { ...(prev[key] || baseFor(key)), ...patch } }));
 
+  // Desktops/laptops have no GPS: a high-accuracy fix often times out, so retry
+  // once with network-based accuracy before giving up with a specific reason.
   const fillFromMyLocation = (key) => {
-    if (!navigator.geolocation) return toast.error('Location is not supported in this browser.');
+    const PASTE_HINT = 'Paste the location from Google Maps in the box below instead.';
+    if (!window.isSecureContext) return toast.error(`Location only works on an https page. ${PASTE_HINT}`);
+    if (!navigator.geolocation) return toast.error(`Location is not supported in this browser. ${PASTE_HINT}`);
+
+    setLocatingKey(key);
+    const onSuccess = (pos) => {
+      setLocatingKey(null);
+      setDraft(key, { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) });
+      toast.success('Location filled — check it on the map, then press Save.');
+    };
+    const onFail = (err) => {
+      setLocatingKey(null);
+      toast.error(err?.code === 1
+        ? `Location permission is blocked for this site. Allow it from the icon in the address bar, or ${PASTE_HINT.charAt(0).toLowerCase()}${PASTE_HINT.slice(1)}`
+        : `Couldn't detect your location on this device. ${PASTE_HINT}`);
+    };
     navigator.geolocation.getCurrentPosition(
-      (pos) => setDraft(key, { lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) }),
-      () => toast.error('Could not get your current location.'),
-      { enableHighAccuracy: true, timeout: 10000 }
+      onSuccess,
+      (err) => {
+        if (err.code === 1) return onFail(err);
+        navigator.geolocation.getCurrentPosition(onSuccess, onFail, { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
+  };
+
+  // Paste box: fill lat/lng from a Google Maps link or copied coordinates.
+  const applyPaste = (key, text, { silent = false } = {}) => {
+    const point = parseLatLng(text);
+    if (point) {
+      setDraft(key, { lat: String(point.lat), lng: String(point.lng) });
+      setPasteText(prev => ({ ...prev, [key]: '' }));
+      toast.success('Coordinates filled — press Save.');
+      return true;
+    }
+    if (!silent && String(text || '').trim()) {
+      toast.error(/goo\.gl|maps\.app/i.test(text)
+        ? "Short share links can't be read. Open the link, right-click the pin in Google Maps, and click the coordinates to copy them."
+        : "Couldn't read coordinates from that. In Google Maps, right-click the spot and click the coordinates to copy them.");
+    }
+    return false;
   };
 
   const save = async (key, city) => {
@@ -709,7 +771,8 @@ const CityCentersCard = ({ cities, cityCenters }) => {
                 const lat = parseFloat(draft.lat), lng = parseFloat(draft.lng);
                 const hasPoint = Number.isFinite(lat) && Number.isFinite(lng);
                 return (
-                  <tr key={key}>
+                  <React.Fragment key={key}>
+                  <tr>
                     <td className="py-3 pr-3">
                       <div className="font-extrabold text-gray-900">{city}</div>
                       <div className={`text-[10px] font-black uppercase tracking-wider mt-0.5 ${saved ? 'text-green-600' : 'text-yellow-600'}`}>
@@ -721,11 +784,25 @@ const CityCentersCard = ({ cities, cityCenters }) => {
                     <td className="py-3">
                       <div className="flex justify-end gap-2">
                         {hasPoint && <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noopener noreferrer" className="px-3 py-2 text-xs font-bold text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100">Map</a>}
-                        <button type="button" onClick={() => fillFromMyLocation(key)} className="px-3 py-2 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100">📍 My location</button>
+                        <button type="button" onClick={() => fillFromMyLocation(key)} disabled={locatingKey === key} className="px-3 py-2 text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-lg hover:bg-brand-100 disabled:opacity-60">{locatingKey === key ? 'Locating…' : '📍 My location'}</button>
                         <button type="button" onClick={() => save(key, city)} disabled={savingKey === key || !dirty} className="px-4 py-2 text-xs font-extrabold text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:bg-gray-300">{savingKey === key ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Save'}</button>
                       </div>
                     </td>
                   </tr>
+                  <tr style={{ borderTop: 'none' }}>
+                    <td colSpan="4" className="pb-3">
+                      <input
+                        value={pasteText[key] || ''}
+                        onChange={(e) => setPasteText(prev => ({ ...prev, [key]: e.target.value }))}
+                        onPaste={(e) => { if (applyPaste(key, e.clipboardData.getData('text'), { silent: true })) e.preventDefault(); }}
+                        onBlur={() => applyPaste(key, pasteText[key])}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPaste(key, pasteText[key]); } }}
+                        placeholder={`Or paste a Google Maps link / coordinates for ${city} (e.g. 13.0778, 79.6714)`}
+                        className="w-full p-2 border-2 border-dashed border-gray-200 rounded-lg text-xs font-bold text-gray-700 focus:border-brand-500 focus:ring-0 outline-none"
+                      />
+                    </td>
+                  </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -1617,7 +1694,9 @@ const AdminPage = ({ handleSignOut }) => {
       }
       return onValue(dataRef, (snapshot) => {
         setter(firebaseObjectToArray(snapshot));
-      }, (error) => toast.error(`Could not sync ${path}.`));
+      }, (error) => toast.error(path === 'cityCenters'
+        ? 'City centres are blocked by Firebase rules — add the cityCenters rule in the Firebase console.'
+        : `Could not sync ${path}.`));
     });
 
     Promise.all(listeners).finally(() => setLoading(false));
