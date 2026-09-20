@@ -16,18 +16,30 @@ import admin from 'firebase-admin';
 
 const ADMIN_ORIGIN = 'https://trade2cart.trade.admin.trade2cart.in';
 
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert({
-            projectId: process.env.VITE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        }),
-        databaseURL: process.env.VITE_DATABASE_URL,
-    });
-}
+// Initialise lazily inside the request. Doing this at module scope means a
+// missing or malformed service-account env var crashes the whole function with
+// an opaque FUNCTION_INVOCATION_FAILED, with no way to tell what is wrong.
+const CREDENTIAL_VARS = ['VITE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY', 'VITE_DATABASE_URL'];
 
-const db = admin.database();
+function getDb() {
+    if (!admin.apps.length) {
+        const missing = CREDENTIAL_VARS.filter(v => !process.env[v]);
+        if (missing.length) {
+            const err = new Error(`Missing server config: ${missing.join(', ')}`);
+            err.configError = true;
+            throw err;
+        }
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.VITE_PROJECT_ID,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            }),
+            databaseURL: process.env.VITE_DATABASE_URL,
+        });
+    }
+    return admin.database();
+}
 
 // E.164, as Firebase Auth requires it: + then 8-15 digits, no leading zero.
 const E164 = /^\+[1-9]\d{7,14}$/;
@@ -40,6 +52,17 @@ export default async function handler(req, res) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST.' });
+
+    let db;
+    try {
+        db = getDb();
+    } catch (error) {
+        if (error.configError) {
+            console.error('vendor-phone config:', error.message);
+            return res.status(503).json({ error: `Server not configured: ${error.message}. Set these in Vercel and redeploy.` });
+        }
+        throw error;
+    }
 
     // The caller must be a signed-in admin, proved by their ID token — not by
     // origin, which a non-browser client can set freely.
@@ -103,6 +126,9 @@ export default async function handler(req, res) {
         }
         if (code === 'auth/invalid-phone-number') {
             return res.status(400).json({ error: 'Firebase rejected that number. Check the country code.' });
+        }
+        if (code === 'auth/invalid-credential' || /private key|PEM|DECODER/i.test(error?.message || '')) {
+            return res.status(503).json({ error: 'The server\'s Firebase key is invalid or expired. Regenerate it and update the Vercel env vars.' });
         }
         console.error('vendor-phone failed:', error);
         return res.status(500).json({ error: 'Could not update the number. Please try again.' });
