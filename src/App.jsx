@@ -2154,8 +2154,20 @@ const AdminPage = ({ handleSignOut }) => {
       await update(ref(db, `vendors/${vendorId}`), { ...updates, updatedAt: new Date().toISOString() });
       toast.success('Vendor profile updated.');
       return true;
-    } catch {
-      toast.error('Could not update the vendor. Check the Firebase rules and storage permissions.');
+    } catch (error) {
+      // Say which system refused, and name the code. "Firebase error" on its own
+      // gives no way to tell a Storage rule from a database rule.
+      const code = error?.code || '';
+      if (code.startsWith('storage/')) {
+        toast.error(code === 'storage/unauthorized'
+          ? 'Photo upload blocked by Cloud Storage rules — allow admin writes to vendors/{uid} in Storage → Rules.'
+          : `Photo upload failed (${code}).`);
+      } else if (code === 'PERMISSION_DENIED') {
+        toast.error('Database rules rejected the change — check the vendors rule in Realtime Database → Rules.');
+      } else {
+        toast.error(`Could not update the vendor${code ? ` (${code})` : ''}.`);
+      }
+      console.error('Vendor update failed:', error);
       return false;
     } finally {
       setProcessingId(null);
