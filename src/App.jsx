@@ -557,10 +557,11 @@ const VENDOR_PHOTOS = [
 
 const VENDOR_FIELDS = ['name', 'location', 'address', 'aadhaar', 'pan'];
 
-// Phone is deliberately NOT editable here. It comes from Firebase Auth, and the
-// vendor app looks its own profile up by phone (AccountPage queries vendors with
-// orderByChild('phone') against auth.currentUser.phoneNumber) — rewriting it in
-// the database would lock the vendor out of their own account.
+// Phone can't be written straight to the database: it is the vendor's Firebase
+// Auth credential, and their app looks itself up by it. Changing it goes through
+// api/vendor-phone.js, which updates Auth, the profile and every past assignment
+// together. Everything else here is a plain database write.
+const E164 = /^\+[1-9]\d{7,14}$/;
 const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, onSave, setSelectedImage, processingId, locations = [] }) => {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
@@ -585,7 +586,7 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, onSave, 
   useEffect(() => () => Object.values(draftsRef.current).forEach(d => URL.revokeObjectURL(d.url)), []);
 
   const startEditing = () => {
-    setForm(Object.fromEntries(VENDOR_FIELDS.map(f => [f, vendor?.[f] ?? ''])));
+    setForm({ ...Object.fromEntries(VENDOR_FIELDS.map(f => [f, vendor?.[f] ?? ''])), phone: vendor?.phone ?? '' });
     setErrors({});
     setEditing(true);
   };
@@ -626,6 +627,8 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, onSave, 
     // the mandatory-document flow and shouldn't be unsavable because of it.
     if (trimmed.aadhaar && !/^[2-9]\d{11}$/.test(trimmed.aadhaar)) next.aadhaar = 'Enter a valid 12-digit Aadhaar number.';
     if (trimmed.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(trimmed.pan)) next.pan = 'Enter a valid PAN (e.g. ABCDE1234F).';
+    const phone = String(form.phone ?? '').trim();
+    if (!E164.test(phone)) next.phone = 'Include the country code, e.g. +919876543210.';
     setErrors(next);
     if (Object.keys(next).length) return toast.error('Please fix the highlighted fields.');
 
@@ -636,12 +639,13 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, onSave, 
     const photos = VENDOR_PHOTOS
       .filter(p => drafts[p.key])
       .map(p => ({ ...p, file: drafts[p.key].file }));
+    const phoneChange = phone !== (vendor?.phone ?? '') ? phone : null;
 
-    if (!Object.keys(fields).length && !photos.length) {
+    if (!Object.keys(fields).length && !photos.length && !phoneChange) {
       toast('Nothing to save.');
       return cancelEditing();
     }
-    if (await onSave({ vendorId, fields, photos })) cancelEditing();
+    if (await onSave({ vendorId, fields, photos, phone: phoneChange })) cancelEditing();
   };
 
   if (!vendor) return null;
@@ -676,7 +680,22 @@ const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, onSave, 
             <Avatar src={drafts.profilePhotoURL?.url || vendorPhotoUrl(vendor)} name={vendor.name} size={64} className="cursor-pointer" />
             <div className="min-w-0">
               <h3 className="text-2xl font-extrabold text-gray-900 truncate">{vendor.name || 'Unknown Vendor'}</h3>
-              <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone || 'No phone'}{editing && <span className="ml-2 text-[10px] font-black uppercase text-gray-400">phone can't be changed</span>}</p>
+              {editing ? (
+                <div className="mt-1">
+                  <input
+                    value={form.phone ?? ''}
+                    onChange={setField('phone')}
+                    inputMode="tel"
+                    placeholder="+919876543210"
+                    className={`w-56 px-3 py-2 border-2 rounded-lg font-bold text-gray-900 ${errors.phone ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-brand-600'}`}
+                  />
+                  <p className={`text-[11px] font-bold mt-1 ${errors.phone ? 'text-red-600' : 'text-gray-400'}`}>
+                    {errors.phone || 'Changing this also moves their login and past orders.'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone || 'No phone'}</p>
+              )}
             </div>
           </div>
         </div>
@@ -2137,9 +2156,29 @@ const AdminPage = ({ handleSignOut }) => {
   // Admin-side edit of a vendor profile. Replaced photos are compressed with the
   // same settings the vendor app uses at registration and overwrite the vendor's
   // own storage folder, so there is one canonical file per document.
-  const handleSaveVendor = async ({ vendorId, fields, photos }) => {
+  const handleSaveVendor = async ({ vendorId, fields, photos, phone }) => {
     setProcessingId(vendorId);
     try {
+      // The phone number is the vendor's Auth credential, so it can only be
+      // changed server-side. Do it first: if the number is taken, nothing else
+      // has been written yet.
+      if (phone) {
+        const idToken = await auth.currentUser.getIdToken();
+        const res = await fetch('/api/vendor-phone', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({ vendorId, phone }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(body.error || 'Could not change the phone number.');
+          return false;
+        }
+        if (body.assignmentsUpdated) {
+          toast.info(`Moved ${body.assignmentsUpdated} past order${body.assignmentsUpdated > 1 ? 's' : ''} to the new number.`);
+        }
+      }
+
       const updates = { ...fields };
       for (const { key, file, maxDim, quality } of photos) {
         const compressed = await compressImage(file, maxDim, quality);
