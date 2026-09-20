@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useMemo, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 // --- FIREBASE IMPORTS ---
@@ -15,6 +15,7 @@ import logo from './assets/images/logo.PNG';
 import Avatar from './components/Avatar';
 import ErrorBoundary from './components/ErrorBoundary';
 import { vendorPhotoUrl, docPhotoUrl } from './utils/photos';
+import { GST_RATE, DEFAULT_FEE, LEGACY_FLAT_FEE, sumFeeBase, describeFee } from './utils/platformFee';
 
 
 
@@ -56,10 +57,8 @@ const firebaseObjectToArray = (snapshot) => {
   return data ? Object.keys(data).map(key => ({ id: key, ...data[key] })).sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0)) : [];
 };
 
-// Mediator platform fee charged to the vendor per completed order.
-const PLATFORM_FEE = 50;
-const GST_RATE = 0.18;
-const FEE_PER_ORDER = PLATFORM_FEE * (1 + GST_RATE); // ₹59
+// Mediator platform fee: configurable at /settings/platformFee, stamped onto
+// each bill at completion. See src/utils/platformFee.js.
 const PLATFORM_GSTIN = '33ABCFT1234M1Z5';
 const PLATFORM_SAC = '9985'; // Support services — confirm with CA if a different SAC applies
 const PLATFORM_ADDRESS = 'Arakkonam, Tamil Nadu, India';
@@ -87,6 +86,18 @@ const compressImage = (file, maxDim = 1200, quality = 0.9) => new Promise((resol
   img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
   img.src = url;
 });
+
+// Screen a picked file before it reaches compressImage: canvas only understands
+// a decodable raster image, and anything else falls through and uploads as a
+// mislabeled .jpg that renders broken. Mirrors the vendor app's registration guard.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const rejectImageFile = (file) => {
+  if (!file.type.startsWith('image/')) return 'Please choose a photo (JPG or PNG), not a document.';
+  // Only Safari can decode HEIC; elsewhere it would skip compression silently.
+  if (/^image\/hei[cf]$/.test(file.type)) return "This photo format isn't supported. Please use a JPG or PNG.";
+  if (file.size > MAX_IMAGE_BYTES) return 'This photo is too large. Please choose one under 10 MB.';
+  return null;
+};
 
 // Sequential invoice number per Indian financial year, e.g. T2C/FEE/2026-27/003
 const feeInvoiceNumber = (seq, dateString) => {
@@ -240,27 +251,38 @@ const parseLatLng = (text) => {
 };
 
 // --- Dashboard Content Components ---
-const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setActiveTab }) => {
+const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setActiveTab, onSetCityStatus, processingId }) => {
   const [expandedCity, setExpandedCity] = useState(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // Expansion demand: notify-me requests from cities we don't serve yet,
   // grouped by area. 'booking' source = user tried to schedule a pickup there
   // (higher intent than a location-screen search).
+  // Handled requests are kept, not deleted — `status: 'done'` moves the city to
+  // the Completed list so it stops padding the demand ranking. A fresh request
+  // for a closed city lands as open again, which is the point: renewed demand
+  // should resurface.
   const cityDemand = useMemo(() => {
     const groups = {};
     cityRequests.forEach(r => {
       const key = (r.city || '').trim().toLowerCase();
       if (!key) return;
-      if (!groups[key]) groups[key] = { city: (r.city || '').trim(), count: 0, bookingCount: 0, vendorCount: 0, latest: '', requests: [] };
-      groups[key].count += 1;
-      if (r.source === 'booking') groups[key].bookingCount += 1;
-      if (r.source === 'vendor') groups[key].vendorCount += 1;
-      if ((r.requestedAt || '') > groups[key].latest) groups[key].latest = r.requestedAt || '';
-      groups[key].requests.push(r);
+      if (!groups[key]) groups[key] = { key, city: (r.city || '').trim(), count: 0, bookingCount: 0, vendorCount: 0, latest: '', requests: [], done: [] };
+      const g = groups[key];
+      if (r.status === 'done') { g.done.push(r); return; }
+      g.count += 1;
+      if (r.source === 'booking') g.bookingCount += 1;
+      if (r.source === 'vendor') g.vendorCount += 1;
+      if ((r.requestedAt || '') > g.latest) g.latest = r.requestedAt || '';
+      g.requests.push(r);
     });
-    Object.values(groups).forEach(g => g.requests.sort((a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || '')));
+    const newestFirst = (a, b) => (b.requestedAt || '').localeCompare(a.requestedAt || '');
+    Object.values(groups).forEach(g => { g.requests.sort(newestFirst); g.done.sort(newestFirst); });
     return Object.values(groups).sort((a, b) => b.count - a.count);
   }, [cityRequests]);
+
+  const openCities = useMemo(() => cityDemand.filter(d => d.requests.length > 0), [cityDemand]);
+  const completedCities = useMemo(() => cityDemand.filter(d => d.requests.length === 0 && d.done.length > 0), [cityDemand]);
 
   const stats = useMemo(() => {
     // ✅ Apply the exact same safety filter here so the dashboard counts match exactly
@@ -289,18 +311,19 @@ const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setA
 
       <h3 className="text-xl font-extrabold text-gray-900 mt-10 mb-4">City Requests <span className="text-sm font-bold text-gray-400">(expansion demand from users and vendors outside your service area)</span></h3>
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-        {cityDemand.length > 0 ? (
-          <table className="w-full text-sm text-left text-gray-500 min-w-[480px]">
+        {openCities.length > 0 ? (
+          <table className="w-full text-sm text-left text-gray-500 min-w-[560px]">
             <thead className="text-xs text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-200">
               <tr>
                 <th scope="col" className="px-6 py-4">City</th>
                 <th scope="col" className="px-6 py-4 text-center">Requests</th>
                 <th scope="col" className="px-6 py-4">Latest Request</th>
+                <th scope="col" className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {cityDemand.map(d => {
-                const cityKey = d.city.toLowerCase();
+              {openCities.map(d => {
+                const cityKey = d.key;
                 const isOpen = expandedCity === cityKey;
                 return (
                   <React.Fragment key={cityKey}>
@@ -318,10 +341,19 @@ const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setA
                         <span className="inline-flex px-3 py-1 rounded-full bg-brand-50 text-brand-700 border border-brand-200 font-black">{d.count}</span>
                       </td>
                       <td className="px-6 py-4 font-bold text-gray-500">{d.latest ? formatDate(d.latest) : '—'} <span className="text-gray-300 text-xs ml-2">{isOpen ? '▲' : '▼'}</span></td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSetCityStatus(d, 'done'); }}
+                          disabled={processingId === cityKey}
+                          className="px-4 py-2 text-xs font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400 shadow-sm whitespace-nowrap"
+                        >
+                          {processingId === cityKey ? 'Saving…' : 'Mark done'}
+                        </button>
+                      </td>
                     </tr>
                     {isOpen && (
                       <tr className="bg-gray-50">
-                        <td colSpan="3" className="px-6 py-3">
+                        <td colSpan="4" className="px-6 py-3">
                           <div className="space-y-2">
                             {d.requests.slice(0, 10).map((r, i) => (
                               <div key={r.id || i} className="flex flex-wrap items-center gap-3 text-xs font-bold text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">
@@ -343,9 +375,38 @@ const DashboardContent =({ users, vendors, wasteEntries, cityRequests = [], setA
             </tbody>
           </table>
         ) : (
-          <p className="p-8 text-center text-gray-400 font-bold">No requests yet. When users search an unserviced city in the app, their interest shows up here.</p>
+          <p className="p-8 text-center text-gray-400 font-bold">
+            {completedCities.length > 0
+              ? 'All city requests are handled. Completed areas are listed below.'
+              : 'No requests yet. When users search an unserviced city in the app, their interest shows up here.'}
+          </p>
         )}
       </div>
+
+      {completedCities.length > 0 && (
+        <div className="mt-4">
+          <button onClick={() => setShowCompleted(v => !v)} className="text-sm font-extrabold text-gray-500 hover:text-gray-900">
+            {showCompleted ? '▾' : '▸'} Completed ({completedCities.length})
+          </button>
+          {showCompleted && (
+            <div className="mt-3 space-y-2">
+              {completedCities.map(d => (
+                <div key={d.key} className="flex flex-wrap items-center gap-3 bg-white rounded-xl border border-gray-100 opacity-75 px-4 py-3">
+                  <span className="font-extrabold text-gray-900 capitalize">{d.city}</span>
+                  <span className="text-xs font-bold text-gray-400">{d.done.length} request{d.done.length > 1 ? 's' : ''} handled</span>
+                  <button
+                    onClick={() => onSetCityStatus(d, 'open')}
+                    disabled={processingId === d.key}
+                    className="ml-auto px-4 py-2 text-xs font-bold text-white bg-yellow-500 rounded-lg hover:bg-yellow-600 disabled:bg-gray-400 shadow-sm"
+                  >
+                    {processingId === d.key ? 'Saving…' : 'Reopen'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -485,54 +546,205 @@ const SupportContent = ({ queries, onSetStatus, openDeleteModal, processingId })
   );
 };
 
-const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, setSelectedImage, processingId }) => {
+// Vendor photo slots, with the same compression settings the vendor app uses at
+// registration: documents keep more detail than the selfie so Aadhaar/PAN text
+// stays readable for verification.
+const VENDOR_PHOTOS = [
+  { key: 'profilePhotoURL', label: 'Selfie',  maxDim: 800,  quality: 0.8,  url: (v) => vendorPhotoUrl(v) },
+  { key: 'aadhaarPhotoURL', label: 'Aadhaar', maxDim: 1600, quality: 0.85, url: (v) => docPhotoUrl(v, 'aadhaar') },
+  { key: 'panPhotoURL',     label: 'PAN',     maxDim: 1600, quality: 0.85, url: (v) => docPhotoUrl(v, 'pan') },
+];
+
+const VENDOR_FIELDS = ['name', 'location', 'address', 'aadhaar', 'pan'];
+
+// Phone is deliberately NOT editable here. It comes from Firebase Auth, and the
+// vendor app looks its own profile up by phone (AccountPage queries vendors with
+// orderByChild('phone') against auth.currentUser.phoneNumber) — rewriting it in
+// the database would lock the vendor out of their own account.
+const VendorDetailModal = ({ vendor, onClose, onUpdateStatus, onDelete, onSave, setSelectedImage, processingId, locations = [] }) => {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({});
+  const [drafts, setDrafts] = useState({}); // photo key -> { file, url }
+  const [errors, setErrors] = useState({});
+
+  const vendorId = vendor?.id;
+  const busy = processingId === vendorId;
+
+  // Reset whenever a different vendor is opened.
+  useEffect(() => {
+    setEditing(false);
+    setErrors({});
+    setDrafts(prev => { Object.values(prev).forEach(d => URL.revokeObjectURL(d.url)); return {}; });
+  }, [vendorId]);
+
+  // Never leak the preview blob URLs. Revoke on unmount only — keying this on
+  // `drafts` would revoke still-displayed previews every time another photo is
+  // picked, since the unchanged entries carry the same URLs into the new object.
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  useEffect(() => () => Object.values(draftsRef.current).forEach(d => URL.revokeObjectURL(d.url)), []);
+
+  const startEditing = () => {
+    setForm(Object.fromEntries(VENDOR_FIELDS.map(f => [f, vendor?.[f] ?? ''])));
+    setErrors({});
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    Object.values(drafts).forEach(d => URL.revokeObjectURL(d.url));
+    setDrafts({});
+    setErrors({});
+    setEditing(false);
+  };
+
+  const pickPhoto = (key) => (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const problem = rejectImageFile(file);
+    if (problem) {
+      e.target.value = ''; // so re-picking the same file still fires onChange
+      return toast.error(problem);
+    }
+    setDrafts(prev => {
+      if (prev[key]) URL.revokeObjectURL(prev[key].url);
+      return { ...prev, [key]: { file, url: URL.createObjectURL(file) } };
+    });
+  };
+
+  const setField = (key) => (e) => {
+    const value = key === 'pan' ? e.target.value.toUpperCase() : e.target.value;
+    setForm(prev => ({ ...prev, [key]: value }));
+    setErrors(prev => ({ ...prev, [key]: '' }));
+  };
+
+  const save = async () => {
+    const next = {};
+    const trimmed = Object.fromEntries(VENDOR_FIELDS.map(f => [f, String(form[f] ?? '').trim()]));
+    if (trimmed.name.length < 2) next.name = 'Enter the full name.';
+    if (!trimmed.location) next.location = 'Location is required.';
+    // Aadhaar/PAN are validated only when present — some legacy records predate
+    // the mandatory-document flow and shouldn't be unsavable because of it.
+    if (trimmed.aadhaar && !/^[2-9]\d{11}$/.test(trimmed.aadhaar)) next.aadhaar = 'Enter a valid 12-digit Aadhaar number.';
+    if (trimmed.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(trimmed.pan)) next.pan = 'Enter a valid PAN (e.g. ABCDE1234F).';
+    setErrors(next);
+    if (Object.keys(next).length) return toast.error('Please fix the highlighted fields.');
+
+    // Only send what actually changed, so an untouched field can't clobber a
+    // value written by the vendor while this modal was open.
+    const fields = {};
+    VENDOR_FIELDS.forEach(f => { if (trimmed[f] !== (vendor?.[f] ?? '')) fields[f] = trimmed[f]; });
+    const photos = VENDOR_PHOTOS
+      .filter(p => drafts[p.key])
+      .map(p => ({ ...p, file: drafts[p.key].file }));
+
+    if (!Object.keys(fields).length && !photos.length) {
+      toast('Nothing to save.');
+      return cancelEditing();
+    }
+    if (await onSave({ vendorId, fields, photos })) cancelEditing();
+  };
+
   if (!vendor) return null;
 
+  const field = (key, label, props = {}) => (
+    <div>
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{label}</p>
+      {editing ? (
+        <>
+          <input
+            value={form[key] ?? ''}
+            onChange={setField(key)}
+            list={key === 'location' ? 'vendor-locations' : undefined}
+            className={`w-full mt-1 px-3 py-2 border-2 rounded-lg font-bold text-gray-900 ${errors[key] ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-brand-600'}`}
+            {...props}
+          />
+          {errors[key] && <p className="text-[11px] font-bold text-red-600 mt-1">{errors[key]}</p>}
+        </>
+      ) : (
+        <p className="font-bold text-gray-800 mt-1 break-words">{vendor[key] || '—'}</p>
+      )}
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={editing ? undefined : onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto my-8 overflow-hidden max-h-[90vh] flex flex-col animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <datalist id="vendor-locations">{locations.map(l => <option key={l} value={l} />)}</datalist>
         <div className="p-6 relative flex-shrink-0 border-b border-gray-100">
-          <button onClick={onClose} className="absolute top-5 right-5 p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={editing ? cancelEditing : onClose} className="absolute top-5 right-5 p-2 bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-full transition-colors"><X className="w-5 h-5" /></button>
           <div className="flex items-center gap-4 pr-10">
-            <Avatar src={vendorPhotoUrl(vendor)} name={vendor.name} size={64} className="cursor-pointer" />
+            <Avatar src={drafts.profilePhotoURL?.url || vendorPhotoUrl(vendor)} name={vendor.name} size={64} className="cursor-pointer" />
             <div className="min-w-0">
               <h3 className="text-2xl font-extrabold text-gray-900 truncate">{vendor.name || 'Unknown Vendor'}</h3>
-              <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone || 'No phone'}</p>
+              <p className="text-sm font-bold text-gray-500 mt-1">{vendor.phone || 'No phone'}{editing && <span className="ml-2 text-[10px] font-black uppercase text-gray-400">phone can't be changed</span>}</p>
             </div>
           </div>
         </div>
         <div className="p-6 bg-gray-50 overflow-y-auto flex-grow">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</p><p className="font-bold text-gray-800 mt-1">{vendor.location}{vendor.locationCustom && <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-700 border border-green-200 font-black uppercase align-middle">New city</span>}</p></div>
-            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aadhaar</p><p className="font-bold text-gray-800 mt-1">{vendor.aadhaar}</p></div>
-            <div><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">PAN</p><p className="font-bold text-gray-800 mt-1">{vendor.pan}</p></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            {editing && field('name', 'Name')}
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Location</p>
+              {editing ? (
+                <>
+                  <input value={form.location ?? ''} onChange={setField('location')} list="vendor-locations" className={`w-full mt-1 px-3 py-2 border-2 rounded-lg font-bold text-gray-900 ${errors.location ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-brand-600'}`} />
+                  {errors.location && <p className="text-[11px] font-bold text-red-600 mt-1">{errors.location}</p>}
+                </>
+              ) : (
+                <p className="font-bold text-gray-800 mt-1">{vendor.location}{vendor.locationCustom && <span className="ml-2 px-2 py-0.5 text-[10px] rounded-full bg-green-50 text-green-700 border border-green-200 font-black uppercase align-middle">New city</span>}</p>
+              )}
+            </div>
+            {field('aadhaar', 'Aadhaar', { inputMode: 'numeric', maxLength: 12 })}
+            {field('pan', 'PAN', { maxLength: 10 })}
+            <div className="md:col-span-3">{field('address', 'Address')}</div>
           </div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Photos & Documents</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Photos &amp; Documents{editing && <span className="ml-2 normal-case tracking-normal text-gray-400">— tap a photo to replace it</span>}</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { label: 'Selfie', url: vendorPhotoUrl(vendor) },
-              { label: 'Aadhaar', url: docPhotoUrl(vendor, 'aadhaar') },
-              { label: 'PAN', url: docPhotoUrl(vendor, 'pan') },
-            ].map(({ label, url }) => (
-              <div key={label}>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">{label}</p>
-                {url ? (
-                  <img src={url} alt={label} className="w-full h-32 rounded-xl shadow-sm border border-gray-200 cursor-pointer object-cover hover:opacity-80 transition-opacity" onClick={() => setSelectedImage(url)} onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x250/e2e8f0/334155?text=${label}+Not+Found`; }} />
-                ) : (
-                  <div className="w-full h-32 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-[11px] font-bold text-gray-400 text-center px-2">No {label} uploaded</div>
-                )}
-              </div>
-            ))}
+            {VENDOR_PHOTOS.map(({ key, label, url }) => {
+              const draft = drafts[key];
+              const shown = draft?.url || url(vendor);
+              const frame = 'w-full h-32 rounded-xl shadow-sm border border-gray-200 object-cover';
+              return (
+                <div key={key}>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">{label}{draft && <span className="ml-1 text-brand-600">· new</span>}</p>
+                  {editing ? (
+                    <label className="block cursor-pointer relative group">
+                      {shown ? (
+                        <img src={shown} alt={label} className={`${frame} group-hover:opacity-70 transition-opacity`} />
+                      ) : (
+                        <div className="w-full h-32 rounded-xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center text-[11px] font-bold text-gray-400">Tap to upload</div>
+                      )}
+                      {shown && <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white opacity-0 group-hover:opacity-100 bg-black/40 rounded-xl transition-opacity">Replace</span>}
+                      <input type="file" className="hidden" accept="image/*" onChange={pickPhoto(key)} />
+                    </label>
+                  ) : shown ? (
+                    <img src={shown} alt={label} className={`${frame} cursor-pointer hover:opacity-80 transition-opacity`} onClick={() => setSelectedImage(shown)} onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x250/e2e8f0/334155?text=${label}+Not+Found`; }} />
+                  ) : (
+                    <div className="w-full h-32 rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-[11px] font-bold text-gray-400 text-center px-2">No {label} uploaded</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="p-5 bg-white border-t border-gray-100 flex justify-end items-center gap-3 flex-shrink-0">
-          {vendor.status === 'pending' && <>
-            <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Reject Vendor'}</button>
-            <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Approve Vendor'}</button>
-          </>}
-          {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-gray-700 rounded-xl hover:bg-gray-800 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Block Vendor'}</button>}
-          {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={processingId === vendor.id} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:bg-gray-400 shadow-sm">{processingId === vendor.id ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Unblock Vendor'}</button>}
-          <button onClick={() => onDelete(vendor)} disabled={processingId === vendor.id} className="p-3 text-red-600 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 disabled:bg-gray-200"><Trash2 className="w-5 h-5" /></button>
+          {editing ? (
+            <>
+              <button onClick={cancelEditing} disabled={busy} className="px-6 py-3 font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+              <button onClick={save} disabled={busy} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-brand-600 rounded-xl hover:bg-brand-700 disabled:bg-gray-400 shadow-sm">{busy ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Save Changes'}</button>
+            </>
+          ) : (
+            <>
+              <button onClick={startEditing} disabled={busy} className="mr-auto px-6 py-3 font-bold text-brand-700 bg-brand-50 border border-brand-200 rounded-xl hover:bg-brand-100 disabled:opacity-50">Edit Profile</button>
+              {vendor.status === 'pending' && <>
+                <button onClick={() => onUpdateStatus(vendor.id, 'rejected')} disabled={busy} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:bg-gray-400 shadow-sm">{busy ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Reject Vendor'}</button>
+                <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={busy} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:bg-gray-400 shadow-sm">{busy ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Approve Vendor'}</button>
+              </>}
+              {vendor.status === 'approved' && <button onClick={() => onUpdateStatus(vendor.id, 'blocked')} disabled={busy} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-gray-700 rounded-xl hover:bg-gray-800 disabled:bg-gray-400 shadow-sm">{busy ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Block Vendor'}</button>}
+              {vendor.status === 'blocked' && <button onClick={() => onUpdateStatus(vendor.id, 'approved')} disabled={busy} className="flex items-center justify-center px-6 py-3 font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:bg-gray-400 shadow-sm">{busy ? <LoaderIcon className="w-4 h-4 animate-spin" /> : 'Unblock Vendor'}</button>}
+              <button onClick={() => onDelete(vendor)} disabled={busy} className="p-3 text-red-600 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 disabled:bg-gray-200"><Trash2 className="w-5 h-5" /></button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1143,10 +1355,74 @@ const BillingContent = ({ users, vendors, bills, openBillModal }) => {
   );
 };
 
+// Editor for /settings/platformFee. Changing this affects orders completed from
+// now on only — every bill stamps the rate it was billed at.
+const PlatformFeeCard = ({ feeSetting, onSave, saving }) => {
+  const [mode, setMode] = useState(feeSetting?.mode === 'percent' ? 'percent' : 'flat');
+  const [value, setValue] = useState(String(feeSetting?.value ?? LEGACY_FLAT_FEE));
+  const [dirty, setDirty] = useState(false);
+
+  // Follow the saved setting until the admin starts editing.
+  useEffect(() => {
+    if (dirty) return;
+    setMode(feeSetting?.mode === 'percent' ? 'percent' : 'flat');
+    setValue(String(feeSetting?.value ?? LEGACY_FLAT_FEE));
+  }, [feeSetting, dirty]);
+
+  const numeric = parseFloat(value);
+  const valid = Number.isFinite(numeric) && numeric >= 0 && (mode !== 'percent' || numeric <= 100);
+
+  const submit = async () => {
+    if (!valid) return toast.error(mode === 'percent' ? 'Enter a percentage between 0 and 100.' : 'Enter a valid fee amount.');
+    await onSave({ mode, value: numeric });
+    setDirty(false);
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+      <h3 className="text-lg font-extrabold text-gray-900 mb-1">Platform Fee</h3>
+      <p className="text-xs font-bold text-gray-400 mb-4">Applies to orders completed from the moment you save. Past orders keep the rate they were billed at.</p>
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex gap-2">
+          {[['flat', 'Flat amount'], ['percent', 'Percentage']].map(([m, label]) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setDirty(true); }}
+              className={`px-4 py-3 rounded-xl text-sm font-bold border-2 transition-colors ${mode === m ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-extrabold text-gray-400">{mode === 'percent' ? '%' : '₹'}</span>
+          <input
+            type="number" min="0" step={mode === 'percent' ? '0.1' : '1'} max={mode === 'percent' ? '100' : undefined}
+            value={value}
+            onChange={(e) => { setValue(e.target.value); setDirty(true); }}
+            className={`w-32 px-4 py-3 border-2 rounded-xl font-bold text-gray-900 ${valid ? 'border-gray-200 bg-gray-50 focus:border-brand-600' : 'border-red-400 bg-red-50'}`}
+          />
+          <span className="text-sm font-bold text-gray-500">{mode === 'percent' ? 'of order value' : 'per completed order'}</span>
+        </div>
+        <button
+          onClick={submit}
+          disabled={saving || !valid || !dirty}
+          className="px-6 py-3 rounded-xl bg-brand-600 text-white font-bold text-sm hover:bg-brand-700 disabled:bg-gray-300 shadow-sm"
+        >
+          {saving ? 'Saving…' : 'Save fee'}
+        </button>
+      </div>
+      <p className="text-xs font-bold text-gray-400 mt-3">Currently charging {describeFee(feeSetting)} + 18% GST.</p>
+    </div>
+  );
+};
+
 // Mediator commission ledger: every completed order (= one bill) owes the
-// platform ₹50 + 18% GST. Dues accumulate per vendor until the admin collects,
-// then reset to zero; settlements are archived under /feeSettlements.
-const VendorFeesContent = ({ vendors, bills, settlements, openCollectModal, openInvoiceModal, processingId }) => {
+// platform fee in force when it completed, plus 18% GST. Dues accumulate per
+// vendor until the admin collects, then reset to zero; settlements are archived
+// under /feeSettlements. Each bill carries its own `platformFeeBase` stamp, so
+// changing the rate never re-prices orders that are already done.
+const VendorFeesContent = ({ vendors, bills, settlements, feeSetting, onSaveFee, savingFee, openCollectModal, openInvoiceModal, processingId }) => {
   const rows = useMemo(() => {
     return vendors
       .filter(v => v.status === 'approved')
@@ -1154,14 +1430,14 @@ const VendorFeesContent = ({ vendors, bills, settlements, openCollectModal, open
         const vendorBills = bills.filter(b => b.vendorID === vendor.id);
         const dueBills = vendorBills.filter(b => !b.platformFeePaid);
         const collectedBills = vendorBills.filter(b => b.platformFeePaid);
-        const base = dueBills.length * PLATFORM_FEE;
+        const base = sumFeeBase(dueBills);
         const gst = base * GST_RATE;
         const lastCollectedAt = collectedBills.reduce((max, b) =>
           b.platformFeeSettledAt && b.platformFeeSettledAt > (max || '') ? b.platformFeeSettledAt : max, null);
         return {
           vendor, dueBills, dueCount: dueBills.length, base, gst,
           total: base + gst,
-          collectedTotal: collectedBills.length * FEE_PER_ORDER,
+          collectedTotal: sumFeeBase(collectedBills) * (1 + GST_RATE),
           lastCollectedAt,
         };
       })
@@ -1175,7 +1451,9 @@ const VendorFeesContent = ({ vendors, bills, settlements, openCollectModal, open
   return (
     <div>
       <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Vendor Fees</h2>
-      <p className="text-sm text-gray-500 font-medium mb-6">Platform charge of {formatINR(PLATFORM_FEE)} + 18% GST = {formatINR(FEE_PER_ORDER)} per completed order. Collect from a vendor to reset their due balance.</p>
+      <p className="text-sm text-gray-500 font-medium mb-6">Platform charge of {describeFee(feeSetting)} + 18% GST. Collect from a vendor to reset their due balance.</p>
+
+      <PlatformFeeCard feeSetting={feeSetting} onSave={onSaveFee} saving={savingFee} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
         <DashboardCard title="Total Due" value={formatINR(totalDue)} icon={<Clock className="w-6 h-6 text-white" />} color="bg-yellow-500" />
@@ -1353,7 +1631,9 @@ const FeeInvoiceModal = ({ settlement, onClose }) => {
                 <td className="px-4 py-4 font-bold text-gray-900">Platform service fee — mediation of scrap pickup orders ({orders} completed order{orders > 1 ? 's' : ''})</td>
                 <td className="px-4 py-4 text-center font-bold">{PLATFORM_SAC}</td>
                 <td className="px-4 py-4 text-center font-bold">{orders}</td>
-                <td className="px-4 py-4 text-right font-bold">{formatINR(PLATFORM_FEE)}</td>
+                {/* Derived from this settlement's own taxable value, so a reprinted
+                    invoice keeps its original figures after a fee change. */}
+                <td className="px-4 py-4 text-right font-bold">{orders > 0 ? formatINR(base / orders) : '—'}</td>
                 <td className="px-4 py-4 text-right font-bold">{formatINR(base)}</td>
               </tr>
             </tbody>
@@ -1390,7 +1670,6 @@ const GstReportContent = ({ vendors, bills }) => {
 
   const monthLabel = (m) => m ? new Date(`${m}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '';
 
-  const CGST_PER_ORDER = PLATFORM_FEE * (GST_RATE / 2); // ₹4.50
   const rows = useMemo(() => {
     if (!selectedMonth) return [];
     const monthBills = bills.filter(b => b.vendorID && String(b.createdAt || '').slice(0, 7) === selectedMonth);
@@ -1401,8 +1680,9 @@ const GstReportContent = ({ vendors, bills }) => {
     return Object.entries(byVendor).map(([vendorId, vBills]) => {
       const vendor = vendors.find(v => v.id === vendorId) || {};
       const orders = vBills.length;
-      const taxable = orders * PLATFORM_FEE;
-      const cgst = orders * CGST_PER_ORDER;
+      // Sum each bill's own stamped fee — the rate can differ between orders.
+      const taxable = sumFeeBase(vBills);
+      const cgst = taxable * (GST_RATE / 2);
       return {
         vendorId,
         name: vendor.name || 'Unknown Vendor',
@@ -1449,7 +1729,7 @@ const GstReportContent = ({ vendors, bills }) => {
   return (
     <div>
       <h2 className="text-2xl font-extrabold text-gray-900 mb-1">GST Report</h2>
-      <p className="text-sm text-gray-500 font-medium mb-6">Platform-fee GST per month for filing: {formatINR(PLATFORM_FEE)} taxable + 9% CGST + 9% SGST per completed order. Reported for the month the order was completed, regardless of collection status.</p>
+      <p className="text-sm text-gray-500 font-medium mb-6">Platform-fee GST per month for filing: the fee charged on each order + 9% CGST + 9% SGST. Reported for the month the order was completed, regardless of collection status.</p>
 
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
         <select
@@ -1653,6 +1933,8 @@ const AdminPage = ({ handleSignOut }) => {
   const [feeSettlements, setFeeSettlements] = useState([]);
   const [cityRequests, setCityRequests] = useState([]);
   const [cityCenters, setCityCenters] = useState([]);
+  const [feeSetting, setFeeSetting] = useState(DEFAULT_FEE);
+  const [savingFee, setSavingFee] = useState(false);
 
   // Item Management State
   const [assignments, setAssignments] = useState({});
@@ -1672,6 +1954,7 @@ const AdminPage = ({ handleSignOut }) => {
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [queryToDelete, setQueryToDelete] = useState(null);
   const [feeToCollect, setFeeToCollect] = useState(null);
+  const [cityToSet, setCityToSet] = useState(null); // { group, status }
   const [feeInvoiceToView, setFeeInvoiceToView] = useState(null);
   const [transferModalState, setTransferModalState] = useState({ isOpen: false, assignment: null });
 
@@ -1703,7 +1986,40 @@ const AdminPage = ({ handleSignOut }) => {
     return () => listeners.forEach(unsubscribe => unsubscribe && unsubscribe());
   }, []);
 
+  // The fee setting is a single object, not a collection, so it needs its own
+  // listener rather than joining the firebaseObjectToArray list above.
+  useEffect(() => {
+    return onValue(ref(db, 'settings/platformFee'), (snap) => {
+      const v = snap.val();
+      setFeeSetting(v && (v.mode === 'flat' || v.mode === 'percent') ? v : DEFAULT_FEE);
+    }, () => {
+      setFeeSetting(DEFAULT_FEE);
+      toast.error('Platform fee is blocked by Firebase rules — add the settings rule in the Firebase console.');
+    });
+  }, []);
+
+  const handleSaveFee = async ({ mode, value }) => {
+    setSavingFee(true);
+    try {
+      await set(ref(db, 'settings/platformFee'), { mode, value, updatedAt: new Date().toISOString() });
+      toast.success(`Platform fee is now ${describeFee({ mode, value })}. Orders already completed keep their old rate.`);
+    } catch {
+      toast.error('Could not save. Check the Firebase rules for settings.');
+    } finally {
+      setSavingFee(false);
+    }
+  };
+
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'approved'), [vendors]);
+
+  // Serviced cities, offered as suggestions when editing a vendor's location.
+  const vendorLocations = useMemo(() => [...new Set(items.map(i => i.location))].filter(Boolean).sort(), [items]);
+  // Track the live record so the modal shows saved edits instead of the snapshot
+  // it was opened with.
+  const liveVendorToView = useMemo(
+    () => (vendorToView ? vendors.find(v => v.id === vendorToView.id) || vendorToView : null),
+    [vendors, vendorToView]
+  );
 
   // ✅ BUG FIX: Double safety check applied here to ensure processed items never show up
   const unassignedWasteEntries = useMemo(() => wasteEntries.filter(w => !w.isAssigned && w.status !== 'Processed'), [wasteEntries]);
@@ -1818,6 +2134,33 @@ const AdminPage = ({ handleSignOut }) => {
     finally { setProcessingId(null); }
   };
 
+  // Admin-side edit of a vendor profile. Replaced photos are compressed with the
+  // same settings the vendor app uses at registration and overwrite the vendor's
+  // own storage folder, so there is one canonical file per document.
+  const handleSaveVendor = async ({ vendorId, fields, photos }) => {
+    setProcessingId(vendorId);
+    try {
+      const updates = { ...fields };
+      for (const { key, file, maxDim, quality } of photos) {
+        const compressed = await compressImage(file, maxDim, quality);
+        // compressImage returns the original file when the JPEG would be bigger —
+        // store that under its real type rather than claiming it's a JPEG.
+        const contentType = compressed === file ? (file.type || 'image/jpeg') : 'image/jpeg';
+        const ext = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+        const fileRef = storageRef(storage, `vendors/${vendorId}/${key}.${ext}`);
+        await uploadBytes(fileRef, compressed, { contentType });
+        updates[key] = await getDownloadURL(fileRef);
+      }
+      await update(ref(db, `vendors/${vendorId}`), { ...updates, updatedAt: new Date().toISOString() });
+      toast.success('Vendor profile updated.');
+      return true;
+    } catch {
+      toast.error('Could not update the vendor. Check the Firebase rules and storage permissions.');
+      return false;
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const toggleUserStatus = async (user) => {
     setProcessingId(user.id);
@@ -2049,6 +2392,31 @@ const AdminPage = ({ handleSignOut }) => {
     }
   };
 
+  // Closing a city flips every request in that group at once — one atomic
+  // multi-path write, same shape as handleCollectFees. Requests are kept, not
+  // deleted, so the expansion demand history survives.
+  const handleSetCityStatus = async () => {
+    if (!cityToSet) return;
+    const { group, status } = cityToSet;
+    const targets = status === 'done' ? group.requests : group.done;
+    setProcessingId(group.key);
+    try {
+      const now = new Date().toISOString();
+      const updates = {};
+      targets.forEach(r => {
+        updates[`cityRequests/${r.id}/status`] = status;
+        updates[`cityRequests/${r.id}/servicedAt`] = status === 'done' ? now : null;
+      });
+      await update(ref(db), updates);
+      toast.success(status === 'done' ? `${group.city} marked done.` : `${group.city} reopened.`);
+    } catch {
+      toast.error('Could not update the city requests. Check the Firebase rules for cityRequests.');
+    } finally {
+      setProcessingId(null);
+      setCityToSet(null);
+    }
+  };
+
   const handleDeleteQuery = async () => {
     if (!queryToDelete) return;
     setProcessingId(queryToDelete.id);
@@ -2083,6 +2451,11 @@ const AdminPage = ({ handleSignOut }) => {
         base,
         gst,
         total,
+        // What was charged and which bills it covered — without these a
+        // settlement can't be audited after the fee changes.
+        feeMode: feeSetting?.mode || DEFAULT_FEE.mode,
+        feeValue: Number(feeSetting?.value ?? DEFAULT_FEE.value),
+        billIds: dueBills.map(b => b.id),
         collectedAt: now,
         invoiceNo: feeInvoiceNumber(feeSettlements.length + 1, now),
         sac: PLATFORM_SAC,
@@ -2102,14 +2475,14 @@ const AdminPage = ({ handleSignOut }) => {
     if (loading) return <div className="flex justify-center items-center h-64"><LoaderIcon className="w-16 h-16 animate-spin text-brand-500" /></div>;
 
     const contentMap = {
-      dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} cityRequests={cityRequests} setActiveTab={setActiveTab} />,
+      dashboard: <DashboardContent users={users} vendors={vendors} wasteEntries={wasteEntries} cityRequests={cityRequests} setActiveTab={setActiveTab} onSetCityStatus={(group, status) => setCityToSet({ group, status })} processingId={processingId} />,
       users: <UserManagementContent users={users} toggleUserStatus={toggleUserStatus} openDeleteModal={setUserToDelete} processingId={processingId} />,
       verification: <VendorVerificationContent vendors={vendors} openVendorDetailModal={setVendorToView} activeVendorTab={activeVendorTab} setActiveVendorTab={setActiveVendorTab} />,
       assignment: <AssignmentContent users={users} groupedUnassignedEntries={groupedUnassignedEntries} approvedVendors={approvedVendors} assignments={assignments} setAssignments={setAssignments} confirmGroupAssignment={confirmGroupAssignment} processingId={processingId} />,
       ongoing: <OngoingOrdersContent assignments={ongoingAssignments} users={users} vendors={vendors} wasteEntries={wasteEntries} openTransferModal={(assignment) => setTransferModalState({ isOpen: true, assignment })} openDeleteModal={setAssignmentToDelete} />,
       items: <ItemManagementContent items={items} cityCenters={cityCenters} newItem={newItem} setNewItem={setNewItem} handleInputChange={handleItemInputChange} handleItemSubmit={handleItemSubmit} isEditing={isEditing} processingId={processingId} setProcessingId={setProcessingId} handleEditItem={handleEditItem} openDeleteModal={setItemToDelete} cancelEdit={cancelEdit} itemImage={itemImage} setItemImage={setItemImage} imagePreview={imagePreview} setImagePreview={setImagePreview} />,
       billing: <BillingContent users={users} vendors={vendors} bills={bills} openBillModal={setBillToView} />,
-      fees: <VendorFeesContent vendors={vendors} bills={bills} settlements={feeSettlements} openCollectModal={setFeeToCollect} openInvoiceModal={setFeeInvoiceToView} processingId={processingId} />,
+      fees: <VendorFeesContent vendors={vendors} bills={bills} settlements={feeSettlements} feeSetting={feeSetting} onSaveFee={handleSaveFee} savingFee={savingFee} openCollectModal={setFeeToCollect} openInvoiceModal={setFeeInvoiceToView} processingId={processingId} />,
       gst: <GstReportContent vendors={vendors} bills={bills} />,
       support: <SupportContent queries={queries} onSetStatus={setQueryStatus} openDeleteModal={setQueryToDelete} processingId={processingId} />,
     };
@@ -2133,13 +2506,22 @@ const AdminPage = ({ handleSignOut }) => {
       <ConfirmationModal isOpen={!!vendorToDelete} onClose={() => setVendorToDelete(null)} onConfirm={handleDeleteVendor} title="Delete Vendor" message={`This will permanently delete the vendor '${vendorToDelete?.name}' and all their assignments and bills. Ongoing orders will be returned to the queue. This cannot be undone.`} />
       <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={handleDeleteAssignment} title="Delete Assignment" message={`Are you sure you want to delete this assignment? The items will be returned to the assignment queue.`} />
       <ConfirmationModal isOpen={!!queryToDelete} onClose={() => setQueryToDelete(null)} onConfirm={handleDeleteQuery} title="Delete Ticket" message={`Delete this support ticket from ${queryToDelete?.name || queryToDelete?.vendorName || 'the user'}? This cannot be undone.`} />
-      <ConfirmationModal isOpen={!!feeToCollect} onClose={() => setFeeToCollect(null)} onConfirm={handleCollectFees} title="Collect Platform Fee" message={`Collect ${formatINR(feeToCollect?.total)} from '${feeToCollect?.vendor?.name || 'this vendor'}'? This covers ${feeToCollect?.dueCount} completed order${feeToCollect?.dueCount > 1 ? 's' : ''} × ${formatINR(FEE_PER_ORDER)} (${formatINR(PLATFORM_FEE)} + 18% GST). Their due balance will reset to zero.`} />
+      <ConfirmationModal
+        isOpen={!!cityToSet}
+        onClose={() => setCityToSet(null)}
+        onConfirm={handleSetCityStatus}
+        title={cityToSet?.status === 'done' ? 'Mark City Done' : 'Reopen City'}
+        message={cityToSet?.status === 'done'
+          ? `Mark all ${cityToSet?.group?.requests?.length || 0} request${(cityToSet?.group?.requests?.length || 0) > 1 ? 's' : ''} for '${cityToSet?.group?.city || ''}' as done? They move to Completed and stop counting toward demand. Nothing is deleted, and any new request for this city will show up again.`
+          : `Reopen '${cityToSet?.group?.city || ''}'? Its ${cityToSet?.group?.done?.length || 0} handled request${(cityToSet?.group?.done?.length || 0) > 1 ? 's' : ''} return to the active list.`}
+      />
+      <ConfirmationModal isOpen={!!feeToCollect} onClose={() => setFeeToCollect(null)} onConfirm={handleCollectFees} title="Collect Platform Fee" message={`Collect ${formatINR(feeToCollect?.total)} from '${feeToCollect?.vendor?.name || 'this vendor'}'? This covers ${feeToCollect?.dueCount} completed order${feeToCollect?.dueCount > 1 ? 's' : ''} — ${formatINR(feeToCollect?.base)} in fees + 18% GST. Their due balance will reset to zero.`} />
 
 
       <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />
       {billToView && <BillModal bill={billToView} onClose={() => setBillToView(null)} />}
       {feeInvoiceToView && <FeeInvoiceModal settlement={feeInvoiceToView} onClose={() => setFeeInvoiceToView(null)} />}
-      {vendorToView && <VendorDetailModal vendor={vendorToView} onClose={() => setVendorToView(null)} onUpdateStatus={updateVendorStatus} onDelete={setVendorToDelete} setSelectedImage={setSelectedImage} processingId={processingId} />}
+      {liveVendorToView && <VendorDetailModal vendor={liveVendorToView} onClose={() => setVendorToView(null)} onUpdateStatus={updateVendorStatus} onDelete={setVendorToDelete} onSave={handleSaveVendor} setSelectedImage={setSelectedImage} processingId={processingId} locations={vendorLocations} />}
       <TransferOrderModal isOpen={transferModalState.isOpen} onClose={() => setTransferModalState({ isOpen: false, assignment: null })} onConfirm={handleTransferOrder} assignment={transferModalState.assignment} vendors={approvedVendors} processingId={processingId} />
     </div>
   );

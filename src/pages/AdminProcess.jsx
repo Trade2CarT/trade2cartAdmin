@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ref, get, onValue, push, update } from 'firebase/database';
 import { db } from '../firebase';
+import { DEFAULT_FEE, feeBaseFor } from '../utils/platformFee';
 
 // --- ICONS ---
 const Loader = () => (
@@ -175,6 +176,11 @@ const AdminProcess = () => {
             const timestamp = new Date().toISOString();
             const promises = [];
 
+            // Fee in force at completion. Read once here rather than held in
+            // state, so the bill can never be stamped with a stale rate.
+            const feeSnap = await get(ref(db, 'settings/platformFee')).catch(() => null);
+            const feeSetting = feeSnap?.val() || DEFAULT_FEE;
+
             // 1. Log Waste Entries so the customer history is accurate
             billItems.forEach((item) => {
                 const finalWeight = item.weight || 0;
@@ -219,6 +225,9 @@ const AdminProcess = () => {
                 totalBill,
                 createdAt: timestamp,
                 mobile: assignment.mobile || "",
+                // Stamp the fee in force right now, so a later rate change
+                // never re-prices this order. See utils/platformFee.js.
+                platformFeeBase: feeBaseFor(feeSetting, totalBill),
             }));
 
             // Execute safely and simultaneously
